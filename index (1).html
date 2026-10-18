@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="sr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Business Simulator – simulacija vođenja metalne firme</title>
+<meta name="description" content="Besplatna poslovna simulacija: vodi malu metalnu firmu, upravljaj kešom, kapacitetom i finansiranjem i podigni vrednost firme.">
+<meta name="theme-color" content="#2f6fb5">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Business Simulator – simulacija vođenja metalne firme">
+<meta property="og:description" content="Vodi malu metalnu firmu: ponude, kapacitet, keš tok, PDV, krediti i faktoring. Koliko će tvoja firma vredeti za 24 meseca?">
+<meta property="og:locale" content="sr_RS">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏭</text></svg>">
+<style>
+:root{--bg:#f4f6f9;--c:#fff;--t:#222;--b:#d0d5dd;--h:#e8f4f8;--m:#fff3cd}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181d;--c:#1f242b;--t:#e6e8eb;--b:#3a424d;--h:#1c2b36;--m:#3b3418}}
+:root[data-theme="dark"]{--bg:#15181d;--c:#1f242b;--t:#e6e8eb;--b:#3a424d;--h:#1c2b36;--m:#3b3418}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{font-family:Arial,sans-serif;background:var(--bg);color:var(--t);max-width:900px;margin:0 auto;padding:12px;font-size:14px}
+h2{margin:0 0 10px}h3{margin:0 0 6px;font-size:15px}
+.dash{background:var(--h);border-left:5px solid #3498db;padding:10px;border-radius:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:4px 12px;margin-bottom:12px;font-size:13px}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.box,.panel{background:var(--c);border:1px solid var(--b);border-radius:6px;padding:10px}
+.box{flex:1;min-width:260px}.panel{margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}td{padding:3px 0;border-bottom:1px solid var(--b)}td+td{text-align:right}
+.log{background:#272822;color:#f8f8f2;font:12px monospace;height:160px;overflow-y:auto;padding:10px;border-radius:6px;margin-bottom:12px}
+.card{border:1px solid var(--b);border-radius:6px;padding:10px;margin-bottom:8px}
+.card small{opacity:.7}
+button{background:#3498db;color:#fff;border:0;border-radius:4px;padding:8px 10px;font-size:13px;cursor:pointer;margin:2px}
+button.o{background:#e67e22}button.g{background:#27ae60;font-weight:bold}button.d{background:#e74c3c}button.t{background:#16a085}button.p{background:#8e44ad}
+#bd{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:19}
+#modal{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,560px);max-height:82vh;overflow-y:auto;box-sizing:border-box;background:var(--m);border:2px solid #f0c040;border-radius:10px;padding:14px;z-index:20;box-shadow:0 10px 40px rgba(0,0,0,.45)}
+button:disabled{opacity:.4;cursor:not-allowed}.r{color:#e74c3c}.gr{color:#27ae60}input,select{padding:6px;width:130px}
+</style></head><body>
+<h2 id="naslov">MetalProizvodi d.o.o.</h2>
+<div id="banner" style="display:none;position:sticky;top:0;z-index:30;background:#e74c3c;color:#fff;padding:10px;border-radius:6px;margin-bottom:10px;font-weight:bold"></div>
+<div class="dash" id="dash"></div>
+<div class="panel" id="vf"></div>
+<div class="panel"><h3>⚙️ Odluke</h3>
+<button class="t" onclick="cap('poz')">Vrati pozajmicu</button>
+<button class="o" onclick="cap('div')">Dividenda</button>
+<button class="o" onclick="cap('kred')">Otplati kredit</button>
+<button class="p" onclick="cap('dob')">Isplati dobavljače</button>
+<button onclick="cnc()">Kupi CNC (+300 h)</button>
+<button onclick="hire()">Zaposli (+160 h, +2.500 €/mes)</button>
+<button onclick="cert()">ISO sertifikat (7.500 €)</button>
+<button class="o" onclick="kredRez()">Kredit kao rezerva</button>
+<button class="p" onclick="fakt()">Prodaj potraživanja</button>
+<button onclick="hala()">Veća hala</button>
+<button onclick="voz()">Kupi vozilo</button>
+<button onclick="admin()">Zaposli administratora</button>
+<button class="o" onclick="smanji()">Smanji troškove</button>
+<button class="o" onclick="pravne()">Pravne radnje</button>
+<button onclick="zast()">Zaštita opreme</button></div>
+<div id="bd"></div>
+<div id="modal"><h3 id="mt"></h3><p id="mx"></p><div id="mb"></div></div>
+<div class="row"><div class="box"><h3>📊 Bilans uspeha (poslednji mesec)</h3><table id="pnl"></table></div>
+<div class="box"><h3>⚖️ Bilans stanja</h3><table id="bs"></table></div></div>
+<h3>Dnevnik</h3><div class="log" id="log">Start: nasleđen jedan posao u toku. Mesečni fiksni troškovi: oko 14.500 € (plate 10.000 + režija 3.000 + prodaja 1.500), a keš je 30.000 €. Poslove sada osvajaš ponudama: svaka košta oko 0,3% vrednosti posla (najmanje 100 €), ishod je neizvestan, a posao počinje tek sledeći mesec. Krediti 24 m, lizing 60 m. Trajanje igre biraš pri startu.<br></div>
+<div class="panel"><h3>📅 Raspored naplate i plaćanja (narednih 6 meseci)</h3><div id="cal" style="overflow-x:auto"></div><small>Prognoza uključuje već ugovorene poslove (sa avansima i PDV-om), ali ne i nove ponude. Rok naplate može da se produži, a kupac da ode u stečaj.</small></div>
+<div class="panel" id="ctl"><h3>🏗️ Poslovi u toku</h3><div id="akt"></div></div>
+<div class="panel"><h3>📋 Tržišni upiti, mesec <span id="mm"></span></h3><small>Prodajni slotovi su vreme tvog tima za pripremu ponuda. Mali posao troši 1 slot, srednji 2, veliki 3, a slotovi se obnavljaju svakog meseca.</small><div id="upiti"></div>
+<div style="text-align:center"><button class="g" onclick="zavrsi()">➡ Završi mesec</button></div></div>
+<script>
+const $=id=>document.getElementById(id),fmt=n=>Math.round(n).toLocaleString('sr-RS')+' €',sum=(a,f)=>a.reduce((s,x)=>s+f(x),0);
+let PROD=[0,1500,3000];
+const SAB=[
+{n:"Čelične krovne konstrukcije",p:31500,m:14250,sati:700,tr:2,rok:60,rep:0,cert:0,av:0,pod:0,i:"Standard."},
+{n:"Državna infrastruktura",p:57000,m:25500,sati:1500,tr:3,rok:60,rep:2,cert:0,av:0,pod:0,i:"Tender, traži reference."},
+{n:"Specijalna oprema (izvoz)",cnc:1,p:43500,m:19500,sati:800,tr:1,rok:30,rep:1,cert:0,av:20,pod:0,i:"Avans 20%."},
+{n:"Robotizovana linija",cnc:1,p:72000,m:31500,sati:1200,tr:2,rok:60,rep:2,cert:0,av:10,pod:0,i:"Avans 10%."},
+{n:"Montaža silosa",p:37500,m:16500,sati:600,tr:2,rok:30,rep:0,cert:0,av:0,pod:1,i:"Podizvođač 25% prihoda."},
+{n:"Međunarodni energetski projekat",cnc:1,p:112500,m:48000,sati:1800,tr:3,rok:45,rep:5,cert:1,av:15,pod:0,i:"🌟 Zahteva ISO."},
+{n:"NATO / odbrambena oprema",cnc:1,p:142500,m:61500,sati:2000,tr:3,rok:30,rep:6,cert:1,av:25,pod:0,i:"🌟 Zahteva ISO."}];
+let g={mesec:1,kes:30000,zalihe:8000,oprema:10000,kapital:55650,plate:10000,rezija:3000,kap:1200,cncN:0,rad:0,celik:1,pdvNet:1530,qNeto:0,rekl:[],ev:[],fDpaid:[],fl:0,N:24,hist:[],sporovi:[],pend:[],dlog:[],matDob:0,matCel:0,hala:1,voz:0,adm:false,bm:3,bw:4,jobs:SAB,bc:400,bmin:100,sl1:45000,sl2:100000,ru:500,ebH:[],divs:0,uloz:55650,rep:2,lvl:1,
+pozajmice:0,pozMax:25000,cert:false,prihodi:0,nabavke:0,ebitda:0,bidCost:0,krediti:[],bids:[],upiti:[],pauza:false,kraj:false,
+fK:[{i:12600,v:2100,d:2,losa:false}],fD:[{i:3420,d:2}],
+aktivni:[{n:"Krovne konstrukcije (nasleđen posao)",p:21000,m:9500,sati:700,tr:2,done:1,rok:30,av:0,pocetak:1,losa:false,pod:0}],
+pnl:{prihod:0,mat:0,pod:0,fix:0,prod:0,van:0,kam:0,neto:0},
+get potr(){return sum(this.fK,f=>f.i)},get obav(){return sum(this.fD,f=>f.i)}};
+const dugT=t=>sum(g.krediti.filter(k=>k.t===t),k=>k.pre);
+const mk=(t,s)=>({t,pre:s,rata:s/(t==='lizing'?60:24),kam:t==='lizing'?.008:.01});
+const load=()=>sum(g.aktivni.filter(j=>j.pocetak<=g.mesec),j=>j.sati/j.tr);
+function msg(t){const b=$('banner');b.innerHTML=t;b.style.display='block';clearTimeout(window._bt);window._bt=setTimeout(()=>b.style.display='none',9000);log('<span class="r">'+t+'</span>')}
+function deb(){const eb=g.ebitda/Math.max(g.mesec-1,1)*12,d=dugT('kredit')+dugT('lizing');return d<=0?'nema duga':eb<=0?'EBITDA ≤ 0':(d/eb).toFixed(2)+' (max 4,0)'}
+function cal(){const R=proyD(null),c=(v,sg)=>v?`<td class="${sg>0?'gr':''}">${sg>0?'+':'−'}${fmt(v)}</td>`:'<td>–</td>';
+ return '<table><tr><td><b>Mesec</b></td><td>Naplate</td><td>Dobavljači</td><td>PDV</td><td>Rate</td><td>Fiksno</td><td>Keš</td></tr>'+R.map(r=>`<tr><td>${r.m}</td>${c(r.nap,1)}${c(r.dob,-1)}${c(Math.abs(r.pdv),r.pdv>0?-1:1)}${c(r.rate,-1)}${c(r.fix,-1)}<td class="${r.kes<0?'r':''}"><b>${fmt(r.kes)}</b></td></tr>`).join('')+'</table>'}
+const avP=()=>g.rep>=8?0:g.rep>=6?.1:g.rep>=4?.25:.4;
+function nazad(){hide();void 0}
+function kMax(){const eb=g.ebitda/Math.max(g.mesec-1,1)*12,dug=g.krediti.reduce((s,k)=>s+k.pre,0),rev=sum(g.hist.slice(-12),x=>x.prihod),a=eb>0?Math.max(0,4*eb-dug):0,b=Math.max(0,.3*rev-dugT('kredit'));return{mx:Math.floor(Math.min(a,b)/1000)*1000,rev}}
+function kreditOk(i){
+ if(g.mesec<=12){msg('❌ Kredit ODBIJEN: banka odlučuje na osnovu zvaničnih finansijskih izveštaja, koji se objavljuju tek posle 12 meseci poslovanja. Kredit je dostupan od meseca 13. Lizing je dostupan odmah.');return 0}
+ if(!(i>0)){msg('Unesite iznos kredita.');return 0}
+ const eb=g.ebitda/Math.max(g.mesec-1,1)*12;
+ if(eb<=0){msg('❌ Kredit ODBIJEN: projektovana godišnja EBITDA je '+fmt(eb)+' (nije pozitivna). Banka odobrava kredit tek kad firma zarađuje.');return 0}
+ const od=(g.krediti.reduce((s,k)=>s+k.pre,0)+i)/eb;
+ if(od>4){msg(`❌ Kredit ODBIJEN: Dug/EBITDA bi bio ${od.toFixed(2)}, a banka dozvoljava najviše 4,0. Traži manji iznos.`);return 0}
+ if(dugT('kredit')+i>.3*kMax().rev){msg('❌ Kredit ODBIJEN: ukupni bankarski krediti ne smeju da pređu 30% prihoda iz poslednjih 12 meseci. Najviše: '+fmt(Math.max(0,.3*kMax().rev-dugT('kredit')))+'.');return 0}
+ return od}
+function kredRez(){if(g.pauza||g.kraj)return;if(g.mesec<=12)return msg('❌ Kredit ODBIJEN: banka odlučuje na osnovu zvaničnih finansijskih izveštaja, koji se objavljuju tek posle 12 meseci poslovanja. Kredit je dostupan od meseca 13. Lizing je dostupan odmah.');
+ const eb=g.ebitda/Math.max(g.mesec-1,1)*12,dug=g.krediti.reduce((s,k)=>s+k.pre,0),mx=kMax().mx;
+ modal('🏦 Kredit kao rezerva likvidnosti',`Rok 24 meseca, mesečna otplata glavnice plus kamata 1% mesečno na ostatak duga, <b>i kad keš stoji neiskorišćen</b>. Dug / EBITDA: ${deb()}. Maksimalno što banka sada odobrava: <b>${fmt(mx)}</b> (granice: Dug/EBITDA do 4,0 i bankarski krediti do 30% prihoda iz poslednjih 12 meseci).`,
+ `<input type="number" id="kr" value="${Math.min(mx,20000)||10000}"> <button class="g" onclick="uzmiRez()">Uzmi kredit</button><button class="d" onclick="hide()">Otkaži</button>`);
+ void 0}
+function uzmiRez(){const i=parseFloat($('kr').value),od=kreditOk(i);if(!od)return;
+ g.krediti.push(mk('kredit',i));g.kes+=i;log(`Kredit kao rezerva +${fmt(i)}, 24 rate (Dug/EBITDA ${od.toFixed(2)}). Rata glavnice ${fmt(i/24)}/mes plus kamata.`);hide();render()}
+const mh=()=>sum(g.jobs,x=>x.p-x.m)/sum(g.jobs,x=>x.sati);
+function izvestaj(P,dk){
+ const a=proy(null),neg=a.findIndex(v=>v<0),ld=load(),pop=Math.round(ld/g.kap*100),mt=g.mesec-1;
+ let ic,nas,tx,sv='';
+ if(neg>=0){ic='🔴';nas='Kritična situacija';tx=`Mesec ${mt} je ${P.neto<0?'završen u minusu':'završen sa dobiti koja nije dovoljna'}. Ako nastaviš ovako, u mesecu ${g.mesec+neg} nećeš moći da platiš obaveze (prognoza keša ${fmt(a[neg])}). Pošalji više ponuda, smanji troškove ili obezbedi rezervu likvidnosti.`}
+ else if(P.neto<0){ic='🟡';nas='Oprez: mesec u minusu';tx=`Gubitak od ${fmt(-P.neto)}. Keš za sada pokriva obaveze, ali ako se ovo ponovi, rezerve će se istopiti.`}
+ else if(dk<0){ic='🟡';nas='Oprez: dobit raste, keš pada';tx=`Zaradio si ${fmt(P.neto)}, ali je keš pao ${fmt(-dk)} jer je ${fmt(g.potr)} još kod kupaca. Prati rok naplate.`}
+ else{ic='🟢';nas='Stabilno poslovanje';tx=`Čestitamo, mesec ${mt} je završen u plusu (${fmt(P.neto)}). Poslovi teku po planu, a firma posluje stabilno.`}
+ if(pop<50)sv=`Kapacitet je popunjen samo ${pop}%: plaćaš ljude i opremu koje ne koristiš, pa šalji više ponuda.`;
+ else if(ld>g.kap)sv=`Sledeći mesec si preopterećen (${Math.round(ld)} / ${g.kap} h): razmisli o CNC mašini ili zapošljavanju.`;
+ const sh=ic==='🟢'&&!sv,c=g.cf||{},rw=(n,v,pos)=>v?`<tr><td>${n}</td><td class="${pos?'gr':''}">${pos?'+':'−'}${fmt(v)}</td></tr>`:'';
+ const cfh='<details '+(sh?'':'open')+'><summary>Novčani tok meseca</summary><table>'+rw('Naplate od kupaca',c.naplate,1)+rw('Avansi kupaca',c.avansK,1)+rw('Avans dobavljačima',c.avansD)+rw('Dobavljači (dospelo)',c.dobav)+rw('Podizvođači',c.pod)+rw('Plate i režija',c.fix)+rw('Prodaja i ponude',c.prod)+rw('PDV državi',c.pdv)+rw('Porez na dobit',c.porez)+rw('Rate (glavnica)',c.gl)+rw('Kamate',c.kam)+rw('Događaji, kazne, prekovremeni',c.dog)+`<tr><td><b>Promena keša</b></td><td class="${dk<0?'r':''}"><b>${fmt(dk)}</b></td></tr></table></details>`;
+ modal(ic+' '+nas+' (mesec '+mt+')',tx+(sv?'<br><br>💡 '+sv:''),(sh?'':`<table><tr><td>Neto rezultat</td><td class="${P.neto<0?'r':''}">${fmt(P.neto)}</td></tr><tr><td>Promena keša</td><td class="${dk<0?'r':''}">${fmt(dk)}</td></tr><tr><td>Keš sada</td><td>${fmt(g.kes)}</td></tr><tr><td>Potraživanja</td><td>${fmt(g.potr)}</td></tr><tr><td>Popunjenost sledećeg meseca</td><td>${pop}%</td></tr></table><br>`)+cfh+'<button class="g" onclick="nast()">Nastavi</button>')}
+let _ev=[],_af=null;
+function pokaziEv(ev,i,af){_ev=ev;_af=af;if(i>=ev.length){hide();return af()}
+ const e=ev[i],last=i===ev.length-1;
+ modal(e.ic+' '+e.t,e.x+'<br><br>'+(e.c?'Šteta: <b class="r">−'+fmt(e.c)+'</b><br>':'')+e.e.map(z=>'• '+z).join('<br>'),`<button class="${e.ok?'g':'d'}" onclick="pokaziEv(_ev,${i+1},_af)">${last?'Nastavi':'Dalje'} (${i+1}/${ev.length})</button>`)}
+function vf(){const n=g.ebH.length,a=n?sum(g.ebH.slice(-n),x=>x)/n:0,god=a*12,op=Math.max(0,god*5),dug=g.krediti.reduce((s,k)=>s+k.pre,0)+g.pozajmice,v=op+g.kes-dug;
+ return{n,god,op,dug,v,tot:v+g.divs,x:(v+g.divs)/g.uloz}}
+function medal(){const f=vf(),m=f.x>=8?'🥇 Zlato':f.x>=4?'🥈 Srebro':f.x>=2?'🥉 Bronza':'bez medalje';
+ return`Vrednost firme <b>${fmt(f.v)}</b> + isplaćene dividende ${fmt(g.divs)} = ${fmt(f.tot)}, što je <b>${f.x.toFixed(1)}×</b> uloženih ${fmt(g.uloz)}. Ocena: <b>${m}</b>`}
+function vfRender(){const f=vf();
+ $('vf').innerHTML=`<h3>💼 Vrednost firme: <span class="${f.v<g.uloz?'r':'gr'}">${fmt(f.v)}</span></h3>
+ <small>Godišnja zarada od poslovanja (EBITDA, prosek ${f.n||0} mes.) ${fmt(f.god)} × 5 = ${fmt(f.op)} &nbsp;+&nbsp; keš ${fmt(g.kes)} &nbsp;−&nbsp; dugovi ${fmt(f.dug)}</small><br>
+ Uloženo ${fmt(g.uloz)} · dividende ${fmt(g.divs)} · rezultat <b>${f.x.toFixed(1)}×</b> uloženog`}
+const SABG=[
+{n:"Ograde i kapije",p:4500,m:1200,sati:60,tr:1,rok:30,rep:0,cert:0,av:0,pod:0,i:"Mali brzi posao."},
+{n:"Nosači za lokalnu firmu",p:7500,m:2500,sati:100,tr:1,rok:30,rep:0,cert:0,av:20,pod:0,i:"Avans 20%."},
+{n:"Mala metalna hala",p:10000,m:3500,sati:140,tr:2,rok:45,rep:0,cert:0,av:10,pod:0,i:"Avans 10%."},
+{n:"Stepeništa i konstrukcije za zgrade",p:14000,m:5000,sati:220,tr:2,rok:60,rep:1,cert:0,av:0,pod:0,i:"Veći posao, sporija naplata."},
+{n:"Mašinska obrada delova (CNC)",p:11000,m:3500,sati:160,tr:1,rok:30,rep:1,cert:0,av:15,pod:0,cnc:1,i:"Traži CNC mašinu."}];
+function izaberi(){g.pauza=true;render();
+ modal('🏭 Izaberi scenario','Trajanje igre: <select id="trajanje"><option value="24">24 meseca</option><option value="36">36 meseci</option><option value="60">60 meseci</option></select>',`<div class="card"><b>🔧 Garaža</b><br><small>Osnivač i jedna mašina (170 h/mes), 12.000 € keša, male porudžbine i mali troškovi. Rast je tvoja odluka i svaki korak ima cenu.</small><br><button class="g" onclick="start('g',+$('trajanje').value)">Počni u garaži</button></div><div class="card"><b>🏭 Uhodana firma, manji tim</b><br><small>Manje mašina i radnika (800 h/mes), niži troškovi (plate 7.000 €) i više keša. Rast gradiš sam.</small><br><button class="o" onclick="start('m',+$('trajanje').value)">Počni sa manjim timom</button></div><div class="card"><b>🏢 Uhodana firma</b><br><small>Tim sa 1.200 h/mes, 30.000 € keša, veći poslovi i veći troškovi.</small><br><button onclick="start('u',+$('trajanje').value)">Počni sa firmom</button></div>`)}
+function start(t,n){g.N=n||24;
+ if(t==='g'){Object.assign(g,{hala:0,bm:0,bw:1,kes:12000,zalihe:2000,oprema:8000,kapital:24400,uloz:24400,plate:2500,rezija:1500,kap:170,cncN:1,pozMax:10000,pdvNet:400,bc:150,bmin:50,sl1:10000,sl2:40000,ru:100,
+  jobs:SABG.concat(SAB),fK:[{i:3600,v:600,d:2,losa:false}],fD:[{i:800,d:2}],
+  aktivni:[{n:"Ograde i kapije (nasleđen posao)",p:6000,m:2000,sati:100,tr:2,done:1,rok:30,av:0,pocetak:1,losa:false,pod:0}]});
+  PROD=[0,500,1000];$('naslov').innerText='Garaža d.o.o.';
+  $('log').innerHTML='Garaža: osnivač sa jednom mašinom (170 h/mes). Mesečni fiksni troškovi oko 4.500 € (plata 2.500 + hala i režija 1.500 + prodaja 500), keš 12.000 €. Ponuda košta oko 0,3% vrednosti posla (najmanje 50 €).<br>'}
+ if(t==='m')Object.assign(g,{kap:800,plate:7000,oprema:6000,kes:34000,bm:2,bw:3});
+ g.pauza=false;hide();gen()}
+const HC=[2,5,10],HN=['Garaža','Hala','Velika hala'];
+const mach=()=>Math.max(1,g.bm+g.cncN),nact=()=>g.aktivni.filter(j=>j.pocetak<=g.mesec).length;
+function hala(){if(g.pauza||g.kraj)return;if(g.hala>=2)return msg('Već imaš najveću halu.');const c=[4000,8000][g.hala],r=[1500,2000][g.hala];
+ modal('🏗️ Veća hala',`Prelaziš u "${HN[g.hala+1]}": kapacitet ${HC[g.hala+1]} mašina. Jednokratno ${fmt(c)} (adaptacija i depozit), plus <b>+${fmt(r)}/mes</b> zakup. ${pv(simMin(0,r,c,null))}`,`<button class="g" onclick="hala2()">Preseli se</button><button class="d" onclick="hide()">Otkaži</button>`)}
+function hala2(){const c=[4000,8000][g.hala],r=[1500,2000][g.hala];if(g.kes<c)return msg('Nema dovoljno keša za adaptaciju.');
+ g.kes-=c;g.kapital-=c;g.rezija+=r;g.hala++;log(`Preseljenje u "${HN[g.hala]}": −${fmt(c)}, zakup +${fmt(r)}/mes. Kapacitet ${HC[g.hala]} mašina.`);hide();render()}
+function voz(){if(g.pauza||g.kraj)return;g.pauza=true;modal('🚚 Dostavno vozilo 18.000 €','Povećava dostavu za 3 istovremena posla. Gorivo i održavanje <b>+900 €/mes</b>. '+vozPrev()+'Način finansiranja:',
+ `<button class="g" onclick="finV('kes')">Keš</button><button class="o" onclick="finV('kredit')" ${g.mesec<=12?'disabled':''}>Kredit (24 mes.${g.mesec<=12?', od meseca 13':''})</button><button class="o" onclick="finV('lizing')">Lizing (60 mes.)</button><button class="d" onclick="g.pauza=false;hide()">Odustani</button>`)}
+function finV(t){const I=18000;if(t==='kredit'&&g.mesec<=12)return msg('❌ Kredit ODBIJEN: banka odlučuje na osnovu zvaničnih finansijskih izveštaja, koji se objavljuju tek posle 12 meseci poslovanja. Kredit je dostupan od meseca 13. Lizing je dostupan odmah.');if(t==='kes'){if(g.kes<I)return msg('Nema dovoljno keša.');g.kes-=I}else g.krediti.push(mk(t,I));
+ g.oprema+=I;g.voz++;g.rezija+=900;g.pauza=false;hide();log(`Kupljeno dostavno vozilo (${t}). Dostava: do ${3+3*g.voz} poslova, trošak +900 €/mes.`);render()}
+function admin(){if(g.pauza||g.kraj)return;if(g.adm)return msg('Administratora već imaš.');g.adm=true;g.plate+=2000;log('Zaposlen administrator (+2.000 €/mes). Fakture i PDV prijave idu na vreme.');render()}
+function smanji(){if(g.pauza||g.kraj)return;
+ const wl=d=>load()>g.kap-d?' ⚠️ Posle ovoga si preopterećen ('+Math.round(load())+' / '+(g.kap-d)+' h).':'',nw=g.bw+g.rad,o1=nw>1&&g.kap-160>=100,o2=g.cncN>0,o3=g.hala>0&&mach()<=HC[g.hala-1];
+ const card=(t,d,b,ok)=>`<div class="card"><b>${t}</b><br><small>${d}</small><br><button class="o" onclick="${b}" ${ok?'':'disabled'}>Izvrši</button></div>`;
+ modal('✂️ Smanjenje troškova',`Mesečni troškovi sada: <b>${fmt(g.plate+g.rezija+PROD[g.lvl])}</b>. Opterećenje ${Math.round(load())} / ${g.kap} h. Prodajni budžet menjaš na dashboardu.`,
+ card('👷 Otpusti radnika','−160 h/mes, ušteda 2.500 €/mes, otpremnina 2.500 € (jednom).'+wl(160)+(o1?'':' Nije moguće (poslednji radnik ili premalo kapaciteta).'),'otpusti()',o1)+
+ card('⚙️ Prodaj kupljenu CNC mašinu','−300 h/mes, ušteda operatera 2.500 €/mes. Dobijaš 14.000 € (70% cene), gubitak 6.000 €. Kredit ili lizing za nju ostaje.'+wl(300)+(o2?'':' Nemaš kupljenu mašinu.'),'prodajM()',o2)+
+ card('🏚️ Manja hala',`Ušteda zakupa ${g.hala>0?fmt([1500,2000][g.hala-1]):'—'}/mes, selidba 2.000 € (jednom).`+(o3?'':' Nije moguće: mašine ne staju u manju halu.'),'manjaH()',o3)+
+ '<button class="d" onclick="hide()">Zatvori</button>')}
+function otpusti(){if(g.bw+g.rad<=1||g.kap-160<100)return;const c=2500;if(g.kes<c)return msg('Nema keša za otpremninu.');g.kes-=c;g.kapital-=c;if(g.rad>0)g.rad--;else g.bw--;g.kap-=160;g.plate-=2500;log('Otpušten radnik: −160 h/mes, ušteda 2.500 €/mes, otpremnina −2.500 €.');hide();render()}
+function prodajM(){if(g.cncN<=0)return;if(g.cncDat&&g.cncDat.length)g.cncDat.pop();g.kes+=14000;g.oprema-=20000;g.kapital-=6000;g.cncN--;g.kap-=300;g.plate-=2500;log('Prodata CNC mašina: +14.000 € keša, gubitak 6.000 €, −300 h/mes, plate −2.500 €/mes.');hide();render()}
+function manjaH(){if(g.hala<=0||mach()>HC[g.hala-1])return;const c=2000,r=[1500,2000][g.hala-1];if(g.kes<c)return msg('Nema keša za selidbu.');g.kes-=c;g.kapital-=c;g.rezija-=r;g.hala--;log(`Preseljenje u manju halu (${HN[g.hala]}): zakup −${fmt(r)}/mes, selidba −2.000 €.`);hide();render()}
+function nast(){hide();if(g.presekCeka&&!g.kraj){g.presekCeka=false;presek()}}
+function presek(){const h=g.hist.slice(-6),n=h.length;if(!n)return;const S=k=>sum(h,x=>x[k]);
+ const pr=S('prihod'),neto=S('neto'),eb=S('eb'),dk=S('dk'),mat=S('mat'),podz=S('pod'),fix=S('fix'),prod=S('prod'),st=S('van'),kam=S('kam'),tax=S('porez'),won=S('won'),lost=S('lost');
+ const util=sum(h,x=>x.util)/n,bm=pr>0?(pr-mat-podz)/pr:0;
+ const costs=[['Materijal',mat],['Plate i režija',fix],['Podizvođači i prekovremeni',podz],['Štete i otpisi',st],['Prodaja i ponude',prod],['Kamate',kam],['Porez na dobit',tax]].sort((a,b)=>b[1]-a[1]).slice(0,3);
+ const ec={};h.forEach(x=>x.evs.forEach(t=>{ec[t]=(ec[t]||0)+1}));const evl=Object.entries(ec).sort((a,b)=>b[1]-a[1]).slice(0,3).map(e=>e[0]+' ×'+e[1]);
+ const pb=[],gd=[];
+ if(neto<0&&pr<fix+prod)pb.push(`Prihod (${fmt(pr)}) ne pokriva fiksne troškove (${fmt(fix+prod)}).`);
+ if(pr>0&&st>.08*pr)pb.push(`Štete i otpisi jedu ${Math.round(st/pr*100)}% prihoda (${fmt(st)}).`);
+ if(util<.5)pb.push(`Kapacitet je slabo iskorišćen (${Math.round(util*100)}%).`);
+ if(util>1.05)pb.push(`Stalno preopterećenje (${Math.round(util*100)}%), plaćaš prekovremeni.`);
+ if(pr>0&&fix/pr>.35)pb.push(`Fiksni troškovi su ${Math.round(fix/pr*100)}% prihoda.`);
+ if(g.potr>pr/n*2)pb.push(`Novac zarobljen u potraživanjima: ${fmt(g.potr)}.`);
+ if(dk<0)pb.push(`Keš je pao za ${fmt(-dk)}.`);
+ if(neto>0)gd.push(`Dobit od ${fmt(neto)}.`);
+ if(bm>=.4)gd.push(`Dobra bruto marža (${Math.round(bm*100)}%).`);
+ if(won+lost>0&&won/(won+lost)>=.4)gd.push(`Osvojeno ${won} od ${won+lost} tendera.`);
+ if(util>=.6&&util<=1)gd.push(`Kapacitet dobro iskorišćen (${Math.round(util*100)}%).`);
+ if(g.rep>=5)gd.push(`Reputacija ${g.rep}/10.`);
+ if(dk>0)gd.push(`Keš je porastao za ${fmt(dk)}.`);
+ const red=neto<0&&dk<0,grn=neto>0&&dk>=0,ic=red?'🔴':grn?'🟢':'🟡';
+ const verdict=grn?'Firma je profitabilna i keš raste.':red?'Firma gubi novac i keš pada.':neto>0?'Firma je profitabilna, ali keš pada.':'Firma je u gubitku, ali keš je stabilan.';
+ const why=neto>0?`Prihodi (${fmt(pr)}) pokrivaju troškove uz bruto maržu ${Math.round(bm*100)}%.`:`Troškovi (${fmt(pr-neto)}) premašuju prihode (${fmt(pr)}).`;
+ const li=a=>a.length?'<br>'+a.map(x=>'• '+x).join('<br>'):' –';
+ modal(ic+' Polugodišnji presek (meseci '+h[0].m+'–'+h[n-1].m+')','<b>'+verdict+'</b> '+why,
+ `<table><tr><td>Prihod</td><td>${fmt(pr)}</td></tr><tr><td>Neto rezultat</td><td class="${neto<0?'r':'gr'}">${fmt(neto)}</td></tr><tr><td>EBITDA</td><td>${fmt(eb)}</td></tr><tr><td>Promena keša</td><td class="${dk<0?'r':'gr'}">${fmt(dk)}</td></tr><tr><td>Keš traje</td><td>${runway()}</td></tr><tr><td>Vrednost firme</td><td>${fmt(vf().v)}</td></tr></table><br><b>Najveći troškovi:</b>${li(costs.map(c=>c[0]+': '+fmt(c[1])+(pr>0?' ('+Math.round(c[1]/pr*100)+'% prihoda)':'')))}${evl.length?'<br><br><b>Najčešći problemi:</b>'+li(evl):''}<br><br><b>Šta ne valja:</b>${li(pb)}<br><br><b>Šta radi dobro:</b>${li(gd)}<br><br><button class="g" onclick="hide()">Nastavi</button>`)}
+const tfee=s=>Math.max(1200,Math.round(s.iznos*.08/100)*100);
+function pravne(){if(g.pauza||g.kraj)return;const op=g.sporovi.filter(s=>s.st===0),tk=g.sporovi.filter(s=>s.st===1);
+ let h=op.map(s=>`<div class="card"><b>${s.n}</b><br><small>Otpisano ${fmt(s.iznos)}. Tužba košta ${fmt(tfee(s))} (advokat i sud) odmah. Ishod za oko 6 meseci, iz stečajne mase obično se naplati 15 do 50% iznosa.</small><br><button class="o" onclick="tuzi(${g.sporovi.indexOf(s)})" ${g.kes<tfee(s)?'disabled':''}>Pokreni tužbu</button></div>`).join('');
+ h+=tk.map(s=>`<div class="card"><b>${s.n}</b><br><small>Spor u toku, ishod u mesecu ${s.due}. Potraživanje ${fmt(s.iznos)}.</small></div>`).join('');
+ modal('⚖️ Pravne radnje',op.length||tk.length?'Neosigurana potraživanja i sporovi:':'Nema otpisanih potraživanja za tužbu.',h+'<button class="d" onclick="hide()">Zatvori</button>')}
+function tuzi(i){const s=g.sporovi[i];if(!s||s.st!==0)return;const f=tfee(s);if(g.kes<f)return msg('Nema dovoljno keša za troškove tužbe.');
+ g.kes-=f;g.kapital-=f;s.st=1;s.due=g.mesec+6;log(`Pokrenuta tužba za "${s.n}": troškovi −${fmt(f)}. Ishod u mesecu ${s.due}.`);hide();render()}
+function ovCost(o,k){const t1=Math.min(o,.3*k),t2=Math.min(Math.max(o-.3*k,0),.7*k),ex=Math.max(0,o-k);return{c:Math.round(t1*19+t2*35),pen:Math.round(ex*15)}}
+let _tn=null;
+function tenderi(next){_tn=next||_tn;if(!g.pend.length){hide();return _tn&&_tn()}
+ const j=g.pend[0],ld=load(),add=j.sati/j.tr,cc=l=>{const o=ovCost(Math.max(0,l-g.kap),g.kap);return o.c+o.pen},ex=cc(ld+add)-cc(ld);
+ modal('🎉 Dobijen tender: '+j.n,`Vrednost <b>${fmt(j.p)}</b>, ${j.tr} mes., ${Math.round(add)} h mesečno. Opterećenje sada ${Math.round(ld)} / ${g.kap} h, sa ovim poslom ${Math.round(ld+add)} h${ld+add>g.kap?' <b class="r">(preopterećenje, oko '+fmt(ex)+' mesečno za prekovremeni)</b>':''}.`,
+ `<button class="g" onclick="tOdl(0)">Prihvati (start mesec ${j.pocetak})</button><button class="o" onclick="tOdl(1)">Odloži za mesec (20% da kupac odustane)</button><button class="d" onclick="tOdl(2)">Odbij (reputacija −1)</button>`)}
+function tOdl(k){const j=g.pend.shift();if(!j)return;let mm=null;
+ if(k===0){g.aktivni.push(j);log(`Prihvaćen posao "${j.n}".`);mm=['✅ Posao prihvaćen',`"${j.n}" počinje u mesecu ${j.pocetak}.`]}
+ else if(k===1){if(Math.random()<.2){log(`Kupac je odustao od "${j.n}" zbog odlaganja.`);mm=['❌ Kupac je odustao',`Kupac je odustao od posla "${j.n}" zbog odlaganja. Posao nećeš raditi, a slot i trošak ponude su izgubljeni.`]}else{j.pocetak+=1;g.aktivni.push(j);log(`Posao "${j.n}" odložen za mesec dana.`);mm=['⏳ Posao odložen',`Kupac je pristao na odlaganje. "${j.n}" počinje u mesecu ${j.pocetak}.`]}}
+ else{g.rep=Math.max(0,g.rep-1);log(`Odbijen posao "${j.n}", reputacija −1.`);mm=['🚫 Posao odbijen',`Odbio si "${j.n}". Reputacija −1 (sada ${g.rep}/10).`]}
+ render();if(mm)modal(mm[0],mm[1],'<button class="g" onclick="tenderi()">Dalje</button>');else tenderi()}
+let HUB=null;
+function statHtml(){const h=g.hist;if(!h.length)return 'Nema podataka.';const S=k=>sum(h,x=>x[k]),n=h.length;
+ const best=h.reduce((a,b)=>b.neto>a.neto?b:a),worst=h.reduce((a,b)=>b.neto<a.neto?b:a);
+ const won=S('won'),lost=S('lost'),ec={};h.forEach(x=>x.evs.forEach(t=>{ec[t]=(ec[t]||0)+1}));
+ const evl=Object.entries(ec).sort((a,b)=>b[1]-a[1]).map(e=>e[0]+' ×'+e[1]).join('<br>')||'–';
+ const f=vf(),r=(a,b)=>`<tr><td>${a}</td><td>${b}</td></tr>`;
+ return '<table>'+r('Meseci odigrano',n)+r('Ukupan prihod',fmt(S('prihod')))+r('Ukupan neto rezultat',fmt(S('neto')))+r('Prosečna mesečna dobit',fmt(S('neto')/n))+r('Najbolji mesec','mesec '+best.m+': '+fmt(best.neto))+r('Najgori mesec','mesec '+worst.m+': '+fmt(worst.neto))+r('Materijal',fmt(S('mat')))+r('&nbsp;&nbsp;od toga poskupljenje dobavljača',fmt(g.matDob))+r('&nbsp;&nbsp;promena cene čelika (neto)',fmt(g.matCel))+r('Plate i režija',fmt(S('fix')))+r('Podizvođači i prekovremeni',fmt(S('pod')))+r('Štete i otpisi',fmt(S('van')))+r('Prodaja, ponude i osiguranje',fmt(S('prod')))+r('Kamate',fmt(S('kam')))+r('Porez na dobit',fmt(S('porez')))+r('Tenderi (dobijeno / izgubljeno)',won+' / '+lost+(won+lost?' ('+Math.round(won/(won+lost)*100)+'%)':''))+r('Prosečna iskorišćenost kapaciteta',Math.round(sum(h,x=>x.util)/n*100)+'%')+r('Reputacija',g.rep+' / 10')+r('Keš, najniži / sada',fmt(Math.min(...h.map(x=>x.kes)))+' / '+fmt(g.kes))+r('Vrednost firme',fmt(f.v)+' ('+f.x.toFixed(1)+'× uloženog)')+'</table><br><b>Nepovoljni događaji:</b><br>'+evl+'<br><br>'+dlogHtml()}
+function hub(ev,P,dk,cb){
+ const cap=f=>{const _m=modal;let r=null;modal=(t,x,b)=>{r={t,x,b}};try{f()}finally{modal=_m}return r};
+ const iz=cap(()=>izvestaj(P,dk)),m=g.hist[g.hist.length-1].m,ps=m%6===0?cap(()=>presek()):null;
+ g.presekCeka=false;HUB={ev,iz,ps,cb,tab:ev.length?'d':'i'};showHub()}
+function showHub(){const H=HUB,t=H.tab,b=k=>`<button class="${t===k?'g':''}" onclick="hubTab('${k}')">`;
+ const body=t==='d'?(H.ev.length?H.ev.map(e=>`<div class="card"><b>${e.ic} ${e.t}</b><br>${e.x}${e.c?'<br>Šteta: <b class="r">−'+fmt(e.c)+'</b>':''}<br><small>${e.e.map(z=>'• '+z).join('<br>')}</small></div>`).join(''):'Ovog meseca nije bilo posebnih događaja.'):
+  t==='i'?'<b>'+H.iz.t+'</b><br>'+H.iz.x+'<br>'+H.iz.b.replace('<button class="g" onclick="nast()">Nastavi</button>',''):
+  t==='p'?'<b>'+H.ps.t+'</b><br>'+H.ps.x+'<br>'+H.ps.b.replace('<button class="g" onclick="hide()">Nastavi</button>',''):statHtml();
+ modal('📅 Kraj meseca '+g.hist[g.hist.length-1].m,b('d')+'Događaji ('+H.ev.length+')</button>'+b('i')+'Izveštaj</button>'+(H.ps?b('p')+'Presek</button>':'')+b('s')+'Statistika</button>',body+'<br><button class="g" onclick="hubKraj()">Nastavi</button>')}
+function hubTab(k){HUB.tab=k;showHub()}
+function hubKraj(){const cb=HUB&&HUB.cb;HUB=null;hide();if(cb)cb()}
+function krajHtml(){return `<h3>🏁 Kraj posle ${g.N} meseci</h3><p>${medal()}</p><button onclick="krajIgre()">Prikaži statistiku</button>`}
+function krajIgre(){modal('🏁 Kraj igre ('+g.N+' meseci)',medal(),statHtml()+'<button class="g" onclick="hide()">Zatvori</button>')}
+const bidC=p=>Math.max(g.bmin,Math.round(p*.003/10)*10);
+function fneed(u,p,av,d){const pr=p/u.tr,mat=u.m/u.tr,aD=mat*avP(),pod=u.pod?pr*.25:0,cl=Math.ceil(u.rok/30)+d,gar=Math.round(.05*p),F={},ad=(m,v)=>{F[m]=(F[m]||0)+v};
+ for(let q=0;q<u.tr;q++){ad(q,-aD-pod);if(q===0)ad(q,av);ad(q+cl,pr*1.2-(q===0?av:0)-(q===u.tr-1?gar:0));ad(q+2,-(mat*1.2-aD));ad(q+1,-(.2*pr-.2*mat))}
+ let c=0,mn=0;for(let m=0;m<=u.tr+cl+2;m++){c+=F[m]||0;if(c<mn)mn=c}return -mn}
+function fund(u,p,av){const pr=p/u.tr,mat=u.m/u.tr,aD=mat*avP(),pod=u.pod?pr*.25:0,cl=Math.ceil(u.rok/30),gar=Math.round(.05*p),F={},ad=(m,v)=>{F[m]=(F[m]||0)+v};
+ for(let q=0;q<u.tr;q++){ad(q,-aD-pod);if(q===0)ad(q,av);ad(q+cl,pr*1.2-(q===0?av:0)-(q===u.tr-1?gar:0));ad(q+2,-(mat*1.2-aD));ad(q+1,-(.2*pr-.2*mat))}
+ const last=u.tr+cl+2;let c=0,mn=0,mm=0;for(let m=0;m<=last;m++){c+=F[m]||0;if(c<mn){mn=c;mm=m}}
+ let c2=0,be=null;for(let m=0;m<=last;m++){c2+=F[m]||0;if(m>=mm&&c2>=0&&be===null&&mn<0)be=m}
+ if(mn>=-1)return '✅ <b>Posao ne traži tvoj keš unapred</b> (avans kupca i rokovi pokrivaju troškove posla).';
+ const need=-mn,ic=need>g.kes?'🔴':need>g.kes*.5?'🟡':'🟠';
+ return ic+' <b>Posao traži do '+fmt(need)+' tvog keša unapred</b> (najniža tačka u mesecu '+(g.mesec+1+mm)+'; avans dobavljaču i PDV idu pre naplate, plate nisu uračunate), vraća se oko meseca '+(g.mesec+1+(be==null?last:be))+(need>g.kes?'. Nemaš toliko keša!':'.')}
+function capInfo(){if(!g.aktivni.length)return '';
+ const cur=load(),fin=sum(g.aktivni.filter(j=>j.pocetak<=g.mesec&&j.done+1>=j.tr),j=>j.sati/j.tr),nxt=sum(g.aktivni.filter(j=>j.pocetak<=g.mesec+1&&(j.pocetak>g.mesec||j.done+1<j.tr)),j=>j.sati/j.tr);
+ return `<div style="margin-top:8px"><small>Ovaj mesec: <b>${Math.round(cur)} / ${g.kap} h</b>. Završava se ${Math.round(fin)} h. Sledeći mesec iz ugovorenih poslova: <b>${Math.round(nxt)} h</b>, slobodno <b>${Math.max(0,Math.round(g.kap-nxt))} h</b>${nxt>g.kap?', <span class="r">preopterećenje '+Math.round(nxt-g.kap)+' h</span>':''}.</small></div>`}
+const rates=()=>sum(g.krediti,k=>Math.min(k.rata,k.pre)+k.pre*k.kam);
+function simMin(dp,dr,dk,loan){const sv={p:g.plate,r:g.rezija,k:g.kes,kr:g.krediti};
+ g.plate+=dp;g.rezija+=dr;g.kes-=dk;g.krediti=g.krediti.map(k=>({...k}));if(loan)g.krediti.push(mk(loan[0],loan[1]));
+ let rows,tros;try{rows=proyD(null);tros=g.plate+g.rezija+PROD[g.lvl]+rates()}finally{g.plate=sv.p;g.rezija=sv.r;g.kes=sv.k;g.krediti=sv.kr}
+ const m=rows.reduce((a,b)=>b.kes<a.kes?b:a);return{tros,min:m.kes,m:m.m}}
+function pv(r){const b=simMin(0,0,0,null);return `Mesečni troškovi: ${fmt(b.tros)} → <b>${fmt(r.tros)}</b>. Najniži keš u narednih 6 meseci: ${fmt(b.min)} → <b class="${r.min<0?'r':''}">${fmt(r.min)}</b> (mesec ${r.m}).`}
+function fTab(dp,dr,I,L){const b=simMin(0,0,0,null),o=(l,m)=>`<tr><td>${l}</td><td>${fmt(m.tros)}</td><td class="${m.min<0?'r':''}">${fmt(m.min)} (m. ${m.m})</td></tr>`;
+ return `<table><tr><td>Način</td><td>Mesečni troškovi (sada ${fmt(b.tros)})</td><td>Najniži keš, 6 mes. (sada ${fmt(b.min)})</td></tr>${o('Keš',simMin(dp,dr,I,null))}${o(g.mesec<=12?'Kredit (od meseca 13)':'Kredit',simMin(dp,dr,0,['kredit',I]))}${o('Lizing',simMin(dp,dr,0,['lizing',I]))}</table><br>`}
+function cncPrev(){const L=load();return `<br>Kapacitet ${g.kap} → ${g.kap+300} h, popunjenost ${Math.round(L/g.kap*100)}% → ${Math.round(L/(g.kap+300)*100)}%.`+fTab(2500,0,20000)}
+function vozPrev(){return '<br>'+fTab(0,900,18000)}
+function dlogHtml(){if(!g.dlog.length)return '';const u=load()/g.kap,tr=g.plate+g.rezija+PROD[g.lvl]+rates();
+ return '<b>Dnevnik odluka:</b><br>'+g.dlog.map(d=>`Mesec ${d.m}: ${d.t}<br><small>tada: opterećenje ${Math.round(d.u*100)}%, mesečni troškovi ${fmt(d.tr)} · sada: ${Math.round(u*100)}%, ${fmt(tr)}</small>`).join('<br>')+'<br><br>'}
+function syncZ(){const w=(g.ins?mach()*150:0)+(g.prev?mach()*100:0);g.rezija+=w-(g.zP||0);g.zP=w}
+function havCover(){const nm=mach(),nw=(g.cncDat||[]).filter(d=>g.mesec-d<12).length;
+ if(nw>0&&Math.random()<nw/nm)return{f:1,e:['Pokrivena garancijom proizvođača (nova mašina, prvih 12 meseci)','Nema troška za tebe']};
+ if(g.ins)return{f:.8,e:['Osiguranje opreme pokriva 80% štete','Ti plaćaš 20% učešća']};
+ return{f:0,e:['Trošak popravke i zastoja','Neto rezultat meseca pada','Zaštita: osiguranje opreme ili preventivno održavanje']}}
+function zast(){if(g.pauza||g.kraj)return;const nm=mach(),nw=(g.cncDat||[]).filter(d=>g.mesec-d<12).length;
+ modal('🛡️ Zaštita opreme',`Mašina: <b>${nm}</b>, od toga ${nw} nove (garancija proizvođača 12 meseci pokriva havariju na njima). Šansa za havariju: <b>${g.prev?'2%':'5%'}</b> po poslu mesečno, šteta 6.000 €. Trenutni trošak zaštite: <b>${fmt(g.zP||0)}</b> mesečno.`,
+ `<div class="card"><b>Osiguranje opreme: ${g.ins?'UKLJUČENO':'isključeno'}</b><br><small>150 € po mašini mesečno (${fmt(nm*150)}). Pokriva 80% štete od havarije, ti plaćaš 20%.</small><br><button class="${g.ins?'d':'g'}" onclick="togZ('ins')">${g.ins?'Isključi':'Uključi'}</button></div><div class="card"><b>Preventivno održavanje: ${g.prev?'UKLJUČENO':'isključeno'}</b><br><small>100 € po mašini mesečno (${fmt(nm*100)}). Smanjuje šansu za havariju sa 5% na 2%.</small><br><button class="${g.prev?'d':'g'}" onclick="togZ('prev')">${g.prev?'Isključi':'Uključi'}</button></div><button class="d" onclick="hide()">Zatvori</button>`)}
+function togZ(k){g[k]=!g[k];render();zast()}
+function log(h){const l=$('log');l.innerHTML+=h+"<hr style='border:0;border-top:1px dashed #555'>";l.scrollTop=l.scrollHeight}
+function gen(){
+ const pool=g.jobs.filter(x=>x.rep<=g.rep&&(!x.cert||g.cert)&&x.sati/x.tr<=g.kap*1.5).sort(()=>Math.random()-.5).slice(0,3+g.lvl);
+ g.slots=slotMax();g.upiti=pool.map((x,i)=>{const f=.95+Math.random()*.1;return{...x,id:i,p:Math.round(x.p*f/g.ru)*g.ru,m:Math.round(x.m*f*g.celik/g.ru)*g.ru,celik:g.celik,kr:(r=>r<.3?0:r<.65?1:r<.9?2:3)(Math.random())}});render()}
+function render(){syncZ();
+ const P=g.pnl,kr=dugT('kredit'),li=dugT('lizing'),mp=Math.max(g.mesec-1,1),L=load();
+ const kratk=g.obav+g.pozajmice+sum(g.krediti,k=>Math.min(k.pre,k.rata*12));
+ const tr=kratk>0?((g.kes+g.zalihe+g.potr)/kratk).toFixed(2):'—',br=kratk>0?((g.kes+g.potr)/kratk).toFixed(2):'—';
+ const dso=g.prihodi>0?Math.round(g.potr/g.prihodi*mp*30):0,dpo=g.nabavke>0?Math.round(g.obav/g.nabavke*mp*30):0;
+ $('dash').innerHTML=[['Mesec',g.mesec>g.N?'kraj':g.mesec+' / '+g.N],['Keš',fmt(g.kes)],['Reputacija',g.rep+' / 10'],['Prodajni slotovi',g.slots+' / '+slotMax()],['Bonus šanse',g.nema?'+'+Math.min(30,g.nema*10)+'% (bez posla '+g.nema+' mes.)':'–'],['Mesečni troškovi',mt()],['Keš traje',runway()],['Hala',HN[g.hala]+': '+mach()+' / '+HC[g.hala]+' mašina'],['Dostava',nact()+' poslova / '+(3+3*g.voz)],['Administrator',g.adm?'da':'ne'],['Avans dobavljaču',Math.round(avP()*100)+'% materijala'],['Opterećenje',Math.round(L)+' / '+g.kap+' h'],['Kapacitet',g.cncN+' CNC · '+g.rad+' novih radnika'],['Cena čelika',(g.celik>=1?'+':'')+Math.round((g.celik-1)*100)+'%'],['PDV neto obaveza',fmt(g.pdvNet)],['Potraživanja',fmt(g.potr)],['Dobavljači',fmt(g.obav)],['Krediti (24m)',fmt(kr)],['Lizing (60m)',fmt(li)],['Pozajmice osnivača',fmt(g.pozajmice)],['ISO',g.cert?'Aktivan':'Nema'],['Ukupni prihodi',fmt(g.prihodi)],['EBITDA zbirno',fmt(g.ebitda)],['Dug / EBITDA',deb()],['Tekući / brzi',tr+' / '+br],['DSO / DPO',dso+' / '+dpo+' d'],
+ ['Prodajni budžet',`<select onchange="g.lvl=+this.value;log('Prodajni budžet od sledećeg meseca: '+fmt(PROD[g.lvl]))">${PROD.map((p,i)=>`<option value="${i}" ${i===g.lvl?'selected':''}>${fmt(p)}/mes</option>`).join('')}</select>`]].map(a=>`<div><b>${a[0]}:</b> ${a[1]}</div>`).join('');
+ $('pnl').innerHTML=[['Prihodi',P.prihod],['Materijal',-P.mat],['Podizvođači / prekovremeni',-P.pod],['Plate + režija',-P.fix],['Prodaja i ponude',-P.prod],['Havarije / otpisi',-P.van],['Kamate',-P.kam],['Porez na dobit',-(P.porez||0)],['<b>Neto rezultat</b>',P.neto]].map(a=>`<tr><td>${a[0]}</td><td class="${a[1]<0?'r':''}">${fmt(a[1])}</td></tr>`).join('');
+ const A=g.kes+g.zalihe+g.potr+g.oprema,Pa=g.obav+kr+li+g.pozajmice+g.pdvNet+g.kapital;
+ $('bs').innerHTML=[['Keš',g.kes],['Zalihe',g.zalihe],['Potraživanja',g.potr],['Oprema',g.oprema],['<b>AKTIVA</b>',A],['Dobavljači',g.obav],['Krediti',kr],['Lizing',li],['Pozajmice osnivača',g.pozajmice],['PDV obaveza',g.pdvNet],['Kapital',g.kapital],['<b>PASIVA</b>',Pa]].map(a=>`<tr><td>${a[0]}</td><td>${fmt(a[1])}</td></tr>`).join('')+`<tr><td>Provera</td><td class="${Math.abs(A-Pa)<2?'gr':'r'}">${Math.abs(A-Pa)<2?'✔ balansira':'✘ '+fmt(A-Pa)}</td></tr>`;
+ $('mm').innerText=g.mesec;vfRender();$('cal').innerHTML=cal();
+ $('akt').innerHTML=g.aktivni.map(j=>`<div>• ${j.n}: ${j.pocetak>g.mesec?'počinje u mesecu '+j.pocetak:'mesec '+(j.done+1)+'/'+j.tr}, ${Math.round(j.sati/j.tr)} h/mes${j.pocetak<=g.mesec&&j.done+1>=j.tr?' · završava se ovog meseca':''}</div>`).join('')+capInfo()||'Nema poslova u toku.';
+ $('upiti').innerHTML=upitiHtml()}
+const slotMax=()=>3+g.lvl+(g.rep>=5?1:0);
+const slotCost=u=>u.p<g.sl1?1:u.p<g.sl2?2:3;
+const price=(u,o)=>Math.round(u.p*[.9,1,1.1][o]/g.ru)*g.ru;
+const sansa=o=>Math.min(.85,[.45,.35,.25][o]+g.rep*.02+Math.min(.3,(g.nema||0)*.1));
+function upitiHtml(){
+ return (g.bids.length?`<p>Poslato ponuda: ${g.bids.length} (−${fmt(g.bidCost)}). Ishod saznaješ na kraju meseca.</p>`:'')+
+ g.upiti.map(u=>{const sc=slotCost(u),dis=sc>g.slots,btn=(o,c,l)=>`<button class="${c}" ${dis?'disabled':''} onclick="bid(${u.id},${o})">${l} ${fmt(price(u,o))} · ${Math.round(sansa(o)*100)}%</button>`;
+ const z=price(u,1)-u.m-(u.pod?price(u,1)*.25:0),rz=u.rok<=30?'🟢':u.rok<=45?'🟡':'🟠';
+ return`<div class="card" ${dis?'style="opacity:.55"':''}><b>${u.n}</b> ${dis?'<span class="r">(nema slotova: treba '+sc+', ostalo '+g.slots+')</span> ':''}${rz}${u.rok<=30||u.av>=20?' ⚡ <small>brz keš</small>':''}<br>Kupac ${'ABCD'[u.kr]} · Zarada ~${fmt(z)} (${Math.round(z/u.sati)} €/h), za ${u.tr} ${u.tr===1?'mesec':'meseca'} rada pokriva ${Math.round(z/u.tr/(g.plate+g.rezija+PROD[g.lvl])*100)}% fiksnih troškova tih meseci · Slotovi: ${sc}<br>${fund(u,price(u,1),Math.round(price(u,1)*u.av/100))}<details><summary>Detalji</summary>Materijal ${fmt(u.m)} | ${u.sati} h u ${u.tr} mes. | Naplata ${u.rok}d${u.av?' | Avans kupca '+u.av+'%':''}<br><small>${u.i}</small></details>${u.cnc&&!g.cncN?'<b class="r">🔒 Zahteva CNC mašinu</b> <button onclick="cnc()">Kupi CNC</button>':btn(0,'d','Jeftino')+btn(1,'','Tržišna')+btn(2,'g','Skupo')}</div>`}).join('')||'Nema više upita ovog meseca.'}
+function proyD(ex){const Fn={},Fd={},Fp={},ad=(o,m,v)=>{o[m]=(o[m]||0)+v};
+ g.aktivni.map(x=>({...x,s:x.pocetak<=g.mesec?g.mesec-x.done:x.pocetak})).concat(ex?[{...ex,done:0,s:g.mesec+1}]:[]).forEach(j=>{
+  const pr=j.p/j.tr,mat=j.m/j.tr,aD=mat*avP();
+  for(let q=j.done;q<j.tr;q++){const m=j.s+q,cl=Math.ceil(j.rok/30),gar=q===j.tr-1?Math.round(.05*j.p):0;
+   ad(Fd,m,aD+(j.pod?pr*.25:0));if(q===0)ad(Fn,m,j.av);ad(Fn,m+cl,pr*1.2-(q===0?j.av:0)-gar);if(gar)ad(Fn,m+cl+6,gar);ad(Fd,m+2,mat*1.2-aD);ad(Fp,m+1,.2*pr-.2*mat)}});
+ let kes=g.kes;const ks=g.krediti.map(k=>({...k})),rows=[];
+ for(let m=g.mesec;m<g.mesec+6&&m<=g.N;m++){
+  const f0=x=>m===g.mesec?x.d<=m:x.d===m;
+  const nap=(Fn[m]||0)+sum(g.fK.filter(f0),f=>f.i),dob=(Fd[m]||0)+sum(g.fD.filter(f0),f=>f.i),pdv=(Fp[m]||0)+(m===g.mesec?Math.max(0,g.pdvNet):0);
+  let rate=0;ks.forEach(k=>{if(k.pre>.5){const gl=Math.min(k.rata,k.pre);rate+=gl+k.pre*k.kam;k.pre-=gl}});
+  const fix=g.plate+g.rezija+PROD[g.lvl];kes+=nap-dob-pdv-rate-fix;rows.push({m,nap,dob,pdv,rate,fix,kes})}
+ return rows}
+function proy(ex){return proyD(ex).map(r=>r.kes)}
+function bid(i,o){if(g.pauza||g.kraj)return;const u=g.upiti.find(x=>x.id===i),sc=slotCost(u);if(u.cnc&&!g.cncN)return msg('🔒 Ovaj posao zahteva CNC mašinu. Kupi je preko dugmeta Kupi CNC.');
+ if(sc>g.slots)return msg(`Nemaš dovoljno prodajnih slotova (treba ${sc}, ostalo ${g.slots}). Slotovi se obnavljaju svakog meseca.`);
+ const pc=price(u,o),j={...u,p:pc,av:Math.round(pc*u.av/100)},pr=j.p/j.tr,mat=j.m/j.tr,aD=Math.round(mat*avP()),pod=j.pod?pr*.25:0,z=j.p-j.m-pod*j.tr;
+ const el=u.kr<=2&&g.rep>=[2,3,5][u.kr],prem=Math.round(pc*[.008,.015,.03][u.kr]/10)*10;const ld0=sum(g.aktivni.filter(x=>x.pocetak<=g.mesec+1&&(x.pocetak>g.mesec||x.done+1<x.tr)),x=>x.sati/x.tr),ld1=ld0+j.sati/j.tr,a=proy(null),b=proy(j),mn=Math.min(...b),qb=sum(g.bids,x=>x.sati/x.tr),qe=sum(g.bids,x=>x.sansa*x.sati/x.tr),cc=l=>{const o=ovCost(Math.max(0,l-g.kap),g.kap);return o.c+o.pen},dcw=(cc(ld0+qb+j.sati/j.tr)-cc(ld0+qb))*j.tr,zw=z-dcw;
+ const rows=a.map((v,k)=>`<tr><td>${g.mesec+k}</td><td>${fmt(v)}</td><td class="${b[k]<0?'r':''}">${fmt(b[k])}</td></tr>`).join('');
+ const nd=fneed(u,pc,j.av,0),fi=nd<=1?'✅ Ne traži tvoj keš unapred':(nd>g.kes?'🔴':nd>g.kes*.5?'🟡':'🟠')+' Traži do <b>'+fmt(nd)+'</b> tvog keša unapred'+(nd>g.kes?' (nemaš toliko!)':'');
+ modal(`📑 ${u.n}: ${['jeftino','tržišna','skupo'][o]}, ${fmt(pc)}`,
+ `Šansa <b>${Math.round(sansa(o)*100)}%</b> · slotovi ${sc} · trošak ${fmt(bidC(pc))} · kupac <b>${'ABCD'[u.kr]}</b> (rizik ${[1,3,8,15][u.kr]}%)<br>Zarada <b>${fmt(z)}</b> (${Math.round(z/j.sati)} €/h)${dcw>0?', uz prekovremeni <b class="r">'+fmt(zw)+'</b>':''}<br>Opterećenje (kapacitet ${g.kap} h): sigurno <b>${Math.round(ld0)}</b>, očekivano <b>${Math.round(ld0+qe+sansa(o)*j.sati/j.tr)}</b>, najgore <b>${Math.round(ld0+qb+j.sati/j.tr)}</b> ${ld0+qb+j.sati/j.tr>g.kap?'<b class="r">⚠ preopterećenje</b>':''}<br>${fi}${mn<0?'<br><b class="r">⚠ Sa ovim poslom keš ide u minus u prognozi.</b>':''}`,
+ `<details><summary>Detalji (plaćanja, kašnjenje, osiguranje, prognoza)</summary>Ako kupac zakasni 90 dana: do <b>${fmt(fneed(u,pc,j.av,3))}</b> keša unapred.<br>${el?'Osiguranje: premija '+fmt(prem)+', pokriva 80% gubitka.':'Osiguranje nije dostupno ('+(u.kr>2?'rizičan kupac':'potrebna reputacija '+[2,3,5][u.kr])+').'}<br><b>Plaćanja:</b> mesec ${g.mesec+1}: avans dobavljaču −${fmt(aD)}${pod?', podizvođač −'+fmt(pod):''}${j.av?', avans kupca +'+fmt(j.av):''}; mesec ${g.mesec+2}: PDV oko −${fmt(Math.max(0,.2*pr-.2*mat))}; mesec ${g.mesec+3}: ostatak dobavljaču −${fmt(mat*1.2-aD)}; prvi račun kupca ${fmt(pr*1.2-j.av)} oko meseca ${g.mesec+1+Math.ceil(j.rok/30)}.${j.tr>1?' Svaki naredni mesec rada ponavlja raspored.':''}<table><tr><td>Mesec</td><td>Keš bez posla</td><td>Keš sa poslom</td></tr>${rows}</table></details><br><button class="g" onclick="potvrdi(${i},${o})">Pošalji ponudu</button>${el?`<button class="o" onclick="potvrdi(${i},${o},1)">Pošalji osiguranu (−${fmt(prem)})</button>`:''}<button class="d" onclick="nazad()">Odustani</button>`);
+ void 0}
+function potvrdi(i,o,os){const u=g.upiti.find(x=>x.id===i);if(!u)return hide();const sc=slotCost(u);if(sc>g.slots)return msg('Nema slotova.');
+ if(os&&!(u.kr<=2&&g.rep>=[2,3,5][u.kr]))os=0;g.bids.push({...u,p:price(u,o),sansa:sansa(o),osig:!!os,prem:os?Math.round(price(u,o)*[.008,.015,.03][u.kr]/10)*10:0});g.upiti=g.upiti.filter(x=>x.id!==i);g.slots-=sc;g.bidCost+=bidC(price(u,o));hide();render();nazad()}
+function modal(t,x,h){$('mt').innerHTML=t;$('mx').innerHTML=x;$('mb').innerHTML=h;$('modal').style.display='block';$('bd').style.display='block'}
+function hide(){$('modal').style.display='none';$('bd').style.display='none'}
+function cert(){if(g.pauza||g.kraj)return;if(g.cert)return msg('ISO već imaš.');if(g.kes<7500)return msg('Nema keša.');
+ g.kes-=7500;g.kapital-=7500;g.cert=true;log('ISO sertifikat uveden (−7.500 €). Premium upiti se pojavljuju kad reputacija dovoljno poraste.');render()}
+function hire(){if(g.pauza||g.kraj)return;const L=load();
+ modal('👷 Novi radnik',`Dodaje <b>160 h</b> mesečno za <b>+2.500 €/mes</b>. Kapacitet ${g.kap} → ${g.kap+160} h, popunjenost ${Math.round(L/g.kap*100)}% → ${Math.round(L/(g.kap+160)*100)}%. ${pv(simMin(2500,0,0,null))}`,'<button class="g" onclick="hire2()">Zaposli</button><button class="d" onclick="hide()">Odustani</button>')}
+function hire2(){hide();g.kap+=160;g.rad++;g.plate+=2500;log('Zaposlen radnik: +160 h, plate +2.500 €/mes.');render()}
+function cnc(){if(g.pauza||g.kraj)return;if(mach()>=HC[g.hala])return msg('🏭 Hala je puna ('+mach()+' / '+HC[g.hala]+' mašina). Prvo pređi u veću halu (dugme Veća hala).');g.pauza=true;modal('⚙️ CNC mašina 20.000 € (+300 h/mes)','Dodaje 300 h/mes i otključava poslove koji traže CNC. Ako kapacitet popuniš, to je oko <b>+'+fmt(300*mh())+' bruto marže mesečno</b> (prosečno '+Math.round(mh())+' €/h). Mašina traži operatera: <b>+2.500 €/mes</b> plate. '+cncPrev()+'Način finansiranja:',
+ `<button class="g" onclick="fin('kes')">Keš</button><button class="o" onclick="fin('kredit')" ${g.mesec<=12?'disabled':''}>Kredit (24 mes.${g.mesec<=12?', od meseca 13':''})</button><button class="o" onclick="fin('lizing')">Lizing (60 mes.)</button><button class="d" onclick="g.pauza=false;hide()">Odustani</button>`)}
+function fin(t){const I=20000;if(t==='kredit'&&g.mesec<=12)return msg('❌ Kredit ODBIJEN: banka odlučuje na osnovu zvaničnih finansijskih izveštaja, koji se objavljuju tek posle 12 meseci poslovanja. Kredit je dostupan od meseca 13. Lizing je dostupan odmah.');if(t==='kes'){if(g.kes<I)return msg('Nema dovoljno keša.');g.kes-=I}else g.krediti.push(mk(t,I));
+ g.oprema+=I;g.kap+=300;g.cncN++;g.plate+=2500;(g.cncDat=g.cncDat||[]).push(g.mesec);g.pauza=false;hide();log(`CNC mašina kupljena (${t}). Kapacitet +300 h/mes.`);render()}
+function zavrsi(){
+ if(g.pauza||g.kraj)return;
+ const m=g.mesec,P={prihod:0,mat:0,pod:0,prod:0,van:0,kam:0};let L=`<b>Mesec ${m}</b><br>`,pri=0,odl=0;
+ g.hav=false;g.fl=0;syncZ();const CF={naplate:0,avansK:0,avansD:0,pod:0,dobav:0,fix:0,prod:0,pdv:0,porez:0,gl:0,kam:0,dog:0};const pdvP=Math.max(0,Math.round(g.pdvNet));if(pdvP>0){g.pdvNet-=pdvP;odl+=pdvP;CF.pdv=pdvP;L+=`• Uplaćen PDV državi: −${fmt(pdvP)}<br>`}
+ const act=g.aktivni.filter(j=>j.pocetak<=m),ld=load(),over=Math.max(0,ld-g.kap),late0=over>g.kap*.2,dl=act.length>3+3*g.voz,late=late0||dl;
+ if(over>0){const oc=ovCost(over,g.kap),c=oc.c+oc.pen;P.pod+=oc.c;P.van+=oc.pen;odl+=c;CF.dog+=c;L+=`• Preopterećenje ${Math.round(over)} h, prekovremeni/podizvođači −${fmt(c)}<br>`}
+ if(dl){P.van+=1500;odl+=1500;CF.dog+=1500;if(!late0)g.rep=Math.max(0,g.rep-1);g.ev.push({ic:'🚚',t:'Kasni isporuke',x:`Imaš ${act.length} poslova istovremeno, a dostava stiže do ${3+3*g.voz}. Angažovan je kurir.`,c:1500,e:['Reputacija −1 (sada '+g.rep+'/10)','Rešenje: kupi dostavno vozilo']})}
+ if(late0){g.ev.push({ic:'⚠️',t:'Kašnjenje isporuke',x:`Preopterećenje od ${Math.round(over)} h (${Math.round(over/g.kap*100)}% kapaciteta) dovelo je do kašnjenja poslova.`,c:(ovCost(over,g.kap).c+ovCost(over,g.kap).pen),e:['Reputacija −1 (sada '+Math.max(0,g.rep-1)+'/10)','Prekovremeni i podizvođači koštaju '+fmt((ovCost(over,g.kap).c+ovCost(over,g.kap).pen)),'Rešenje: CNC mašina ili zapošljavanje']});g.rep=Math.max(0,g.rep-1);L+=`<span class="r">• Kašnjenje poslova zbog preopterećenja: reputacija −1</span><br>`}
+ g.aktivni=g.aktivni.filter(j=>{if(j.pocetak>m)return true;
+  const first=j.done===0,last=j.done===j.tr-1;
+  if(first){g.ev.push({ic:'🚀',ok:1,t:'Počinje posao',x:`Počeo je rad na poslu "${j.n}" (${fmt(j.p)}).`,c:0,e:['Traje '+j.tr+' mes., '+Math.round(j.sati/j.tr)+' h mesečno','Avans dobavljaču se plaća ovog meseca']});if(j.prem)g.bidCost+=j.prem;const cf=g.celik/(j.celik||g.celik),m0=j.m;j.m=Math.round(j.m*cf);g.matCel+=j.m-m0;if(Math.abs(cf-1)>.03)L+=`<span class="${cf>1?'r':'gr'}">• ${j.n}: cena čelika se promenila ${Math.round((cf-1)*100)}% od ponude</span><br>`;const r=Math.random();if(r<.1){const ex=Math.round(j.m*.2);g.matDob+=ex;j.m=Math.round(j.m*1.2);g.ev.push({ic:'📈',t:'Dobavljač poskupeo materijal',x:`Dobavljač je za posao "${j.n}" podigao cenu materijala za 20%.`,c:ex,e:['Marža tog posla pada za '+fmt(ex),'Veća obaveza prema dobavljaču']});L+=`<span class="r">• ${j.n}: dobavljač poskupeo (+20% materijal)</span><br>`}else if(r<.2){j.rok+=90;g.ev.push({ic:'⏳',t:'Kupac kasni sa plaćanjem',x:`Kupac posla "${j.n}" traži odlaganje plaćanja za 90 dana.`,c:0,e:['Naplata se pomera za 3 meseca','Likvidnost je opterećena, a troškovi i rate teku dalje']});L+=`<span class="r">• ${j.n}: kupac kasni sa plaćanjem</span><br>`};j.losa=Math.random()<[.01,.03,.08,.15][j.kr==null?1:j.kr]}
+  const pr=Math.round(j.p/j.tr),mat=Math.round(j.m/j.tr),pod=j.pod?Math.round(pr*.25):0,av=first?j.av:0,avD=Math.round(mat*avP());
+  let van=0;if(Math.random()<(g.prev?.02:.05)){van=6000;g.hav=true;g.ev.push({ic:'🛠️',t:'Havarija na proizvodnji',x:`Na poslu "${j.n}" došlo je do kvara mašine i zastoja.`,c:6000,e:['Trošak popravke i zastoja','Neto rezultat meseca pada']});L+=`<span class="r">• ${j.n}: havarija −6.000 €</span><br>`}
+  if(van>0){const cv=havCover();van=Math.round(van*(1-cv.f));const ev0=g.ev[g.ev.length-1];if(ev0){ev0.c=van;ev0.e=cv.e}}
+  P.prihod+=pr;P.mat+=mat;P.pod+=pod;P.van+=van;pri+=av;odl+=avD+pod+van;CF.avansK+=av;CF.avansD+=avD;CF.pod+=pod;CF.dog+=van;
+  const vp=Math.round(.2*pr),vm=Math.round(.2*mat),gar=last?Math.round(.05*j.p):0,cl=Math.ceil(j.rok/30);
+  g.fD.push({i:mat-avD+vm,d:m+2});g.pdvNet-=vm;
+  g.fK.push({i:pr-av+vp-gar,v:vp,d:m+cl,losa:last&&j.losa,n:j.n,os:j.osig});g.pdvNet+=vp;
+  if(gar)g.fK.push({i:gar,v:0,d:m+cl+6,losa:false});
+  j.ov=Math.max(j.ov||0,ld/g.kap);if(last&&Math.random()<(j.ov<=1?.08:j.ov<=1.2?.15:.25))g.rekl.push({m:m+3,c:Math.round(.04*j.p),n:j.n});
+  g.prihodi+=pr;g.nabavke+=mat;L+=`• Rad na poslu: ${j.n} (${j.done+1}/${j.tr})<br>`;
+  j.done++;if(last){L+=`✔ Završen posao: ${j.n} (rizik reklamacije ${j.ov<=1?8:j.ov<=1.2?15:25}%)<br>`;if(!late)g.rep=Math.min(10,g.rep+1)}return !last});
+ const nr=g.bw+g.rad;
+ if(!g.adm&&(nr>=6||act.length>=4)&&Math.random()<.25){const f0=g.fK.find(x=>!x.losa&&!x.fk&&x.d>m);if(f0)f0.d+=1;P.van+=800;odl+=800;CF.dog+=800;g.ev.push({ic:'🗂️',t:'Administrativni propusti',x:'Bez administratora faktura je poslata kasno, a PDV prijava je zakasnila.',c:800,e:['Kazna za kasnu PDV prijavu','Naplata jedne fakture pomerena za mesec dana','Rešenje: zaposli administratora']})}
+ g.fK=g.fK.filter(f=>{if(f.d>m)return true;
+  if(f.losa){const ls=f.i-(f.v||0),pay=f.os?Math.round(ls*.8):0;P.van+=ls-pay;pri+=pay;CF.naplate+=pay;if(!f.os)g.sporovi.push({iznos:ls,n:f.n||'posao',st:0});g.pdvNet-=(f.v||0);g.ev.push({ic:'💥',t:'Stečaj kupca',x:`Kupac posla "${f.n||'posao'}" je otišao u stečaj i neće platiti fakturu.`,c:ls-pay,e:[f.os?'Osiguranje je isplatilo '+fmt(pay)+' (80% gubitka)':'Potraživanje se otpisuje kao gubitak (nije bilo osigurano)','PDV iz fakture se vraća',f.os?'Premija se isplatila':'Možeš da pokreneš tužbu: Odluke → Pravne radnje (troškovi advokata i suda, naplata iz stečajne mase kasnije)']});L+=`• <span class="r">OTPIS ${fmt(f.i)} – stečaj kupca</span><br>`}else{pri+=f.i;CF.naplate+=f.i;L+=`• Naplaćeno ${fmt(f.i)}<br>`}return false});
+ g.fDpaid=[];g.fD=g.fD.filter(f=>{if(f.d>m)return true;odl+=f.i;CF.dobav+=f.i;g.fDpaid.push(f);L+=`• Plaćen dobavljač ${fmt(f.i)}<br>`;return false});
+ g.krediti=g.krediti.filter(k=>{const kam=k.pre*k.kam,gl=Math.min(k.rata,k.pre);P.kam+=kam;odl+=kam+gl;CF.kam+=kam;CF.gl+=gl;k.pre-=gl;return k.pre>.5});
+ g.bids.forEach(b=>{if(Math.random()<b.sansa){g.pend.push({n:b.n,p:b.p,m:b.m,sati:b.sati,tr:b.tr,done:0,rok:b.rok,av:Math.round(b.p*b.av/100),pocetak:m+1,losa:false,pod:b.pod,celik:b.celik,kr:b.kr,osig:b.osig,prem:b.prem});void({ic:'🎉',ok:1,t:'Dobijen tender!',x:`Dobio si posao "${b.n}" vrednosti <b>${fmt(b.p)}</b>.`,c:0,e:[`Počinje u mesecu ${m+1}, traje ${b.tr} mes.`,`Zauzima ${Math.round(b.sati/b.tr)} h mesečno kapaciteta`,`Očekivana bruto zarada oko ${fmt(b.p-b.m)}`,b.av?`Avans kupca ${fmt(Math.round(b.p*b.av/100))} stiže na početku`:`Bez avansa kupca, naplata na ${b.rok} dana`]});P.won=(P.won||0)+1;L+=`✅ Dobijen tender: ${b.n} (${fmt(b.p)}), počinje mesec ${m+1}<br>`}else{P.lost=(P.lost||0)+1;L+=`❌ Izgubljen tender: ${b.n}<br>`}});
+
+ if(g.bids.length){if(P.won)g.nema=0;else g.nema=(g.nema||0)+1}
+ g.bids=[];
+ g.rekl=g.rekl.filter(r=>{if(r.m>m)return true;P.van+=r.c;odl+=r.c;CF.dog+=r.c;g.rep=Math.max(0,g.rep-1);g.ev.push({ic:'📉',t:'Reklamacija kupca',x:`Kupac je reklamirao završeni posao "${r.n}".`,c:r.c,e:['Reputacija −1 (sada '+g.rep+'/10)','Trošak popravke u garantnom roku']});L+=`<span class="r">• Reklamacija (${r.n}): trošak ${fmt(r.c)}, reputacija −1</span><br>`;return false});
+ g.sporovi.forEach(sp=>{if(sp.st===1&&sp.due<=m){const rec=Math.round(sp.iznos*(.15+Math.random()*.35));P.van-=rec;pri+=rec;CF.naplate+=rec;sp.st=2;g.ev.push({ic:'⚖️',ok:1,t:'Naplata iz stečajne mase',x:`Sud je presudio u tvoju korist za "${sp.n}". Iz stečajne mase naplaćeno je ${fmt(rec)} od ${fmt(sp.iznos)}.`,c:0,e:['Iznos vraća keš i smanjuje ranije otpisanu štetu']})}});
+ const fix=g.plate+g.rezija;P.fix=fix;P.prod=PROD[g.lvl]+g.bidCost;odl+=fix+P.prod;CF.fix=fix;CF.prod=P.prod;g.bidCost=0;
+ P.neto=P.prihod-P.mat-P.pod-fix-P.prod-P.van-P.kam;
+ g.qNeto+=P.neto;P.porez=0;if(m%3===0){P.porez=Math.max(0,Math.round(g.qNeto*.15));g.qNeto=0;if(P.porez)L+=`• Porez na dobit (kvartalni obračun 15%): −${fmt(P.porez)}<br>`}
+ odl+=P.porez;CF.porez=P.porez;g.ebitda+=P.neto+P.kam;g.ebH.push(P.neto+P.kam);P.neto-=P.porez;{const old=g.celik;g.celik=Math.max(.8,Math.min(1.35,1+(g.celik-1)*.85+(Math.random()-.5)*.14));const d=g.celik/old-1;if(Math.abs(d)>.07)g.ev.push({ic:d>0?'📈':'📉',t:'Cena čelika '+(d>0?'skočila':'pala'),x:`Cena čelika se promenila za ${Math.round(d*100)}% u jednom mesecu.`,c:0,e:[d>0?'Materijal u novim ponudama je skuplji':'Materijal u novim ponudama je jeftiniji','Poslovi ugovoreni po staroj ceni menjaju maržu pri startu']})}g.kes+=pri-odl;g.kapital+=P.neto;g.pnl=P;g.cf=CF;g.mesec++;
+ log(L+`Neto rezultat: ${fmt(P.neto)}`);
+ if(false&&g.mesec>g.N){g.kraj=true;render();$('ctl').innerHTML=`<h3>🏁 Kraj posle ${g.N} meseci</h3><p>${medal()}</p><p>Kapital: <b>${fmt(g.kapital)}</b> | Keš: ${fmt(g.kes)} | Reputacija: ${g.rep}/10 | EBITDA: ${fmt(g.ebitda)}</p>`;return}
+ const ev=g.ev;g.ev=[];const dk=pri-odl;g.hist.push({m:m,prihod:P.prihod,mat:P.mat,pod:P.pod,fix:P.fix,prod:P.prod,van:P.van,kam:P.kam,porez:P.porez||0,neto:P.neto,eb:P.neto+P.kam+(P.porez||0),dk:dk,kes:g.kes,util:ld/g.kap,won:P.won||0,lost:P.lost||0,evs:ev.filter(e=>!e.ok).map(e=>e.t)});g.presekCeka=(m%6===0);if(g.mesec>g.N){g.kraj=true;render();$('ctl').innerHTML=krajHtml();hub(ev,P,dk,()=>krajIgre());return}
+ if(g.kes>=0)gen();hub(ev,P,dk,()=>tenderi(()=>{if(g.kes<0)nelik()}))}
+function nelik(){g.pauza=true;render();
+ const man=-g.kes,pre=g.pozMax-g.pozajmice,fs=sum(g.fK.filter(f=>!f.losa),f=>f.i),eb=g.ebitda/Math.max(g.mesec-1,1)*12,dug=g.krediti.reduce((s,k)=>s+k.pre,0),mx=kMax().mx;
+ const ok=v=>v>=man?'<span class="gr">pokriva ceo minus</span>':`<span class="r">pokriva samo ${fmt(v)}</span>`;
+ const opt=(t,d,b)=>`<div class="card"><b>${t}</b><br><small>${d}</small><br>${b}</div>`;
+ let h='';
+ if(pre>0)h+=opt('👤 Pozajmica osnivača',`Preostalo ${fmt(pre)}, uplaćuje se ${fmt(Math.min(man,pre))}: ${ok(pre)}. Nema kamate, ali je to dug prema osnivaču.`,`<button class="t" onclick="poz()">Uzmi pozajmicu</button>`);
+ else if(!g.stan)h+=opt('🏠 Prodaja stana osnivača',`+100.000 €: ${ok(100000)}. Jednokratno, zakup +1.000 €/mes.`,`<button class="d" onclick="stan()">Prodaj stan</button>`);
+ else h+='<p class="r">Lična imovina osnivača je iscrpljena.</p>';
+ h+=opt('🏦 Bankarski kredit (24 mes.)',`${g.mesec<=12?'<span class="r">Banka ne odobrava kredite pre prvih zvaničnih finansijskih izveštaja (dostupno od meseca 13).</span>':'Maksimalno odobreno: '+(mx>0?fmt(mx):'<span class="r">banka trenutno ne odobrava</span>')+'.'} Kamata 1%/mes. Dug/EBITDA: ${deb()}.`,`<input type="number" id="ki" value="${Math.max(Math.ceil(man/1000)*1000,1000)}"> <button class="o" onclick="kred()" ${g.mesec<=12?'disabled':''}>Zatraži kredit</button>`);
+ h+=opt('📄 Faktoring potraživanja',fs>0?`Dobijaš 80% odmah minus diskont 3% + 2% po mesecu do dospeća, najviše polovinu potraživanja mesečno.`:'Nema potraživanja koja se mogu prodati.',`<button class="p" onclick="fakt()" ${fs>0?'':'disabled'}>Prodaj potraživanja</button>`);
+ const ds=sum(g.fDpaid,f=>f.i);
+ h+=opt('🤝 Odlaganje plaćanja dobavljačima (30 dana)',g.rep<2?'<span class="r">Dobavljači više ne veruju firmi: za odlaganje je potrebna reputacija najmanje 2 (sada '+g.rep+').</span>':ds>0?`Dobavljači prihvataju da obaveze plaćene ovog meseca (${fmt(ds)}) naplate mesec dana kasnije: ${ok(ds)}. <b class="r">Cena: reputacija −2.</b>`:'Ovog meseca nisi plaćao dobavljače, pa nema šta da se odloži.',`<button class="o" onclick="odlozi()" ${ds>0&&g.rep>=2?'':'disabled'}>Zamoli za odlaganje</button>`);
+ h+=`<button class="d" onclick="stecajPit()">Proglasi bankrot</button>`;
+ modal(`🚨 Nelikvidnost: minus ${fmt(man)}`,`Račun je u minusu <b class="r">${fmt(man)}</b>. Sledeći mesec ne možeš da počneš dok ga ne pokriješ. Izaberi način premošćavanja, možeš ih i kombinovati:`,h)}
+function resume(){if(g.kes>=0){g.pauza=false;hide();gen();if(g.presekCeka){g.presekCeka=false;presek()}}else nelik()}
+function poz(){const i=Math.min(-g.kes,g.pozMax-g.pozajmice);g.pozajmice+=i;g.kes+=i;log(`Pozajmica osnivača +${fmt(i)}.`);resume()}
+function stan(){if(g.stan)return;g.stan=true;g.uloz+=100000;g.kes+=100000;g.kapital+=100000;g.rezija+=1000;log('Osnivač prodao stan (+100.000 € kapitala), zakup +1.000 €/mes.');resume()}
+function kred(){if(g.mesec<=12)return msg('❌ Kredit ODBIJEN: banka odlučuje na osnovu zvaničnih finansijskih izveštaja, koji se objavljuju tek posle 12 meseci poslovanja. Kredit je dostupan od meseca 13. Lizing je dostupan odmah.');const i=parseFloat($('ki').value);if(!(i>0))return msg('Unesite iznos.');
+ const eb=g.ebitda/Math.max(g.mesec-1,1)*12;if(eb<=0)return msg('❌ Kredit ODBIJEN: projektovana godišnja EBITDA je '+fmt(eb)+' (nije pozitivna), pa banka ne može da proceni otplatu.');
+ const dug=g.krediti.reduce((s,k)=>s+k.pre,0)+i,od=dug/eb;if(od>4)return msg(`❌ Kredit ODBIJEN: Dug/EBITDA bi bio ${od.toFixed(2)}, a banka dozvoljava najviše 4,0. Traži manji iznos.`);
+ if(dugT('kredit')+i>.3*kMax().rev)return msg('❌ Kredit ODBIJEN: ukupni bankarski krediti ne smeju da pređu 30% prihoda iz poslednjih 12 meseci. Najviše: '+fmt(Math.max(0,.3*kMax().rev-dugT('kredit')))+'.');
+ g.krediti.push(mk('kredit',i));g.kes+=i;log(`Kredit +${fmt(i)}, 24 rate (Dug/EBITDA ${od.toFixed(2)}).`);resume()}
+function fq(x){let r=x,fee=0;g.fK.filter(f=>!f.losa&&!f.fk).sort((a,b)=>a.d-b.d).forEach(f=>{if(r<=0)return;const t=Math.min(r,f.i);fee+=t*(.03+.02*Math.max(0,f.d-g.mesec));r-=t});return{fee,cash:x*.8-fee}}
+function fakt(){if(g.kraj)return;const s=sum(g.fK.filter(f=>!f.losa&&!f.fk),f=>f.i),lim=Math.max(0,Math.floor(.5*(s+g.fl)-g.fl));
+ if(lim<=0)return msg('Faktor ovog meseca ne otkupljuje više potraživanja (najviše polovina otvorenih potraživanja mesečno).');
+ let def=Math.floor(lim/2);if(g.pauza){const man=-g.kes;def=lim;for(let x=500;x<=lim;x+=500){if(fq(x).cash>=man){def=x;break}}}
+ const q=fq(def);
+ modal('📄 Faktoring potraživanja',`Možeš da prodaš do <b>${fmt(lim)}</b> ovog meseca (najviše polovina otvorenih potraživanja). Odmah dobijaš 80% fakture umanjeno za diskont 3% + 2% po mesecu do dospeća, a preostalih 20% faktor ti isplaćuje kad kupac plati. Za ${fmt(def)}: odmah <b>${fmt(q.cash)}</b>, trošak ${fmt(q.fee)}.${g.pauza?' Za minus treba '+fmt(-g.kes)+'.':''}`,
+ `<input type="number" id="fi" value="${def}"> <button class="p" onclick="prodajPot()">Prodaj</button><button class="d" onclick="faktOtkazi()">Otkaži</button>`)}
+function prodajPot(){let x=Math.round(parseFloat($('fi').value));const ok=g.fK.filter(f=>!f.losa&&!f.fk),s=sum(ok,f=>f.i),lim=Math.max(0,Math.floor(.5*(s+g.fl)-g.fl));
+ if(!(x>0))return msg('Unesite iznos.');if(x>lim)return msg('Faktor ovog meseca otkupljuje najviše '+fmt(lim)+'.');
+ const q=fq(x);let r=x;ok.sort((a,b)=>a.d-b.d).forEach(f=>{if(r<=0)return;const t=Math.min(r,f.i),d0=f.d;f.v=(f.v||0)*(1-t/f.i);f.i-=t;r-=t;g.fK.push({i:t*.2,v:0,d:d0,losa:false,fk:1})});
+ g.fK=g.fK.filter(f=>f.i>.5);g.fl+=x;g.kes+=q.cash;g.kapital-=q.fee;g.pnl.kam+=q.fee;
+ log(`Faktoring ${fmt(x)}: odmah ${fmt(q.cash)}, diskont ${fmt(q.fee)}, 20% stiže po dospeću.`);
+ if(g.pauza)resume();else{hide();render()}}
+function odlozi(){if(g.rep<2)return msg('❌ Dobavljači odbijaju odlaganje: reputacija ti je preniska (potrebno najmanje 2 boda, sada '+g.rep+').');const s=sum(g.fDpaid,f=>f.i);if(s<=0)return msg('Nema obaveza koje bi mogle da se odlože.');
+ g.fDpaid.forEach(f=>g.fD.push({i:f.i,d:g.mesec}));g.fDpaid=[];g.kes+=s;
+ const old=g.rep;g.rep=Math.max(0,g.rep-2);
+ log(`Dobavljači pristali na odlaganje plaćanja ${fmt(s)} za 30 dana. Reputacija −2 (${old} → ${g.rep}).`);
+ const ev=[{ic:'🤝',t:'Dobavljači odložili plaćanje',x:`Dobavljači su pristali da ${fmt(s)} naplate mesec dana kasnije, ali su ti smanjili poverenje.`,c:0,e:['Reputacija −2 (sada '+g.rep+'/10)','Obaveza dospeva sledeći mesec','Niža reputacija znači veći avans dobavljaču, manju šansu na tenderima i zaključane veće poslove']}];
+ if(g.kes>=0){g.pauza=false;hide();gen();pokaziEv(ev,0,()=>{if(g.presekCeka){g.presekCeka=false;presek()}})}else pokaziEv(ev,0,()=>nelik())}
+function faktOtkazi(){if(g.pauza)nelik();else hide()}
+function mt(){const fx=g.plate+g.rezija+PROD[g.lvl],rt=sum(g.krediti,k=>Math.min(k.rata,k.pre)+k.pre*k.kam);return `<b>${fmt(fx+rt)}</b> <small>(fiksni ${fmt(fx)}${rt>0?' + rate '+fmt(rt):''})</small>`}
+function runway(){const p=proy(null),n=p.findIndex(v=>v<0);return n<0?'6+ meseci':n===0?'<span class="r">ne pokriva ni ovaj mesec</span>':'<span class="r">'+n+' mes. (minus u mesecu '+(g.mesec+n)+')</span>'}
+function stecajPit(){modal('⚠️ Proglasiti bankrot?','Da li si siguran da želiš da proglasiš bankrot? Igra se završava i to ne može da se poništi.','<button class="d" onclick="stecaj()">Da, proglasi bankrot</button><button class="g" onclick="nelik()">Ne, vrati se</button>')}
+function stecaj(){g.kraj=true;hide();$('ctl').innerHTML='<h3 class="r">Bankrot. Igra je završena.</h3>';log('<span class="r">Bankrot.</span>')}
+function cap(t){if(g.pauza||g.kraj)return;
+ const mx={poz:g.pozajmice,div:g.kes,kred:dugT('kredit'),dob:g.obav}[t],nm={poz:'Vrati pozajmicu',div:'Dividenda',kred:'Prevremena otplata kredita',dob:'Isplata dobavljača'}[t];
+ if(t!=='div'&&mx<=0)return msg('Nema šta da se otplati.');
+ modal(nm,`Dostupno: ${fmt(mx)} | Keš: ${fmt(g.kes)}`,`<input type="number" id="ci" value="${Math.floor(Math.min(mx,g.kes))}"> <button class="g" onclick="doCap('${t}')">Potvrdi</button><button class="d" onclick="hide()">Otkaži</button>`)}
+function doCap(t){let i=parseFloat($('ci').value);if(!(i>0))return msg('Unesite iznos.');if(i>g.kes)return msg('Nema dovoljno keša.');
+ if(t==='poz'){i=Math.min(i,g.pozajmice);g.pozajmice-=i}
+ else if(t==='div'){g.kapital-=i;g.divs+=i}
+ else if(t==='kred'){i=Math.min(i,dugT('kredit'));let r=i;g.krediti.filter(k=>k.t==='kredit').forEach(k=>{const x=Math.min(r,k.pre);k.pre-=x;r-=x});g.krediti=g.krediti.filter(k=>k.pre>.5)}
+ else{i=Math.min(i,g.obav);let r=i;g.fD.sort((a,b)=>a.d-b.d).forEach(f=>{const x=Math.min(r,f.i);f.i-=x;r-=x});g.fD=g.fD.filter(f=>f.i>.5)}
+ g.kes-=i;log(`${t==='div'?'Dividenda':'Otplata ('+t+')'}: −${fmt(i)}.`);hide();render()}
+
+const SC=(function(){
+ if(typeof THREE==='undefined')return;
+ const host=$('scena'),W=host.clientWidth||380,H=250;
+ const R=new THREE.WebGLRenderer({antialias:true,alpha:true});R.setPixelRatio(Math.min(window.devicePixelRatio||1,2));R.setSize(W,H);
+ R.domElement.style.cssText='width:100%;height:100%;display:block;touch-action:pan-y';host.appendChild(R.domElement);
+ const S=new THREE.Scene(),C=new THREE.PerspectiveCamera(35,W/H,.1,100);
+ S.add(new THREE.AmbientLight(0xffffff,.75));const Ld=new THREE.DirectionalLight(0xffffff,.75);Ld.position.set(5,9,7);S.add(Ld);
+ const M=c=>new THREE.MeshLambertMaterial({color:c});
+ const bx=(w,h,d,c,x,y,z,p)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),M(c));m.position.set(x,y,z);p.add(m);return m};
+ const gp=(x,y,z,p)=>{const o=new THREE.Group();o.position.set(x,y,z);p.add(o);return o};
+ bx(14,.1,10,'#d5dbe0',0,-.05,0,S);bx(14,3,.2,'#c3ccd5',0,1.5,-5,S);bx(.2,3,10,'#c3ccd5',-7,1.5,0,S);
+ bx(.8,.9,.5,'#2f6fb5',6,.45,3.6,S);const flag=bx(.08,.5,.08,'#e0523f',6.5,1.1,3.6,S);
+ const pap=bx(.8,1,.6,'#f4f6f8',-5.6,.5,3.2,S);const cash=bx(.7,1,.7,'#f2c230',-4.4,.5,3.2,S);
+ const let_=bx(.5,.06,.35,'#ffffff',0,-9,0,S);bx(.5,.07,.08,'#e0523f',0,0,0,let_);
+ function mkM(x,z){const o=gp(x,0,z,G);o.scale.setScalar(.55);
+  bx(4,1.2,3,'#3b4a5a',0,.6,0,o);bx(4.04,.12,3.04,'#f2b632',0,.12,0,o);
+  bx(4,2,.2,'#e9eef2',0,2.2,-1.4,o);bx(.2,2,3,'#e9eef2',-1.9,2.2,0,o);bx(.2,2,3,'#e9eef2',1.9,2.2,0,o);bx(4,.25,3,'#2f6fb5',0,3.32,0,o);
+  bx(1.3,2,.2,'#2d3946',1.25,2.2,1.4,o);bx(.95,.6,.04,'#46c28b',1.25,2.65,1.52,o);
+  const gl=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.7,.05),new THREE.MeshLambertMaterial({color:'#9fc3d9',transparent:true,opacity:.3}));gl.position.set(-.45,2.2,1.45);o.add(gl);
+  bx(2.2,.3,1.8,'#6b7785',-.45,1.35,0,o);bx(.9,.5,.9,'#b8c0c8',-.45,1.75,0,o);
+  const hd=gp(-.45,0,0,o);bx(.5,.3,.5,'#4a5663',0,2.95,0,hd);bx(.24,.5,.24,'#7d8a97',0,2.6,0,hd);const tl=bx(.08,.35,.08,'#c9d1d8',0,2.28,0,hd);
+  bx(.12,.5,.12,'#4a5663',1.6,3.7,-.6,o);const lp=bx(.4,.32,.4,'#3fae6b',1.6,4.1,-.6,o);return{o,hd,tl,lp}}
+ function mkW(x,z){const o=gp(x,0,z,G),SU='#2b5fa8';o.scale.setScalar(.7);
+  [-.2,.2].forEach(a=>{const l=gp(a,.7,0,o);bx(.3,.7,.3,'#234e8c',0,-.35,0,l)});
+  const up=gp(0,.7,0,o);bx(.9,.9,.45,SU,0,.45,0,up);
+  const aL=gp(-.6,.85,0,up),aR=gp(.6,.85,0,up);[aL,aR].forEach(a=>{bx(.25,.8,.25,SU,0,-.4,0,a);bx(.22,.22,.22,'#f1c9a0',0,-.9,0,a)});
+  const hd=gp(0,.95,0,up);const sk=bx(.6,.6,.6,'#f1c9a0',0,.3,0,hd);bx(.7,.2,.7,'#f2c230',0,.68,0,hd);bx(.1,.1,.04,'#222',-.14,.36,.31,hd);bx(.1,.1,.04,'#222',.14,.36,.31,hd);
+  return{o,up,aL,aR,hd,sk}}
+ let G=gp(0,0,0,S),ms=[],ws=[],sig='';
+ function build(){S.remove(G);G=gp(0,0,0,S);ms=[];ws=[];
+  const nM=Math.min(8,Math.max(1,g.bm+g.cncN)),nW=Math.min(10,g.bw+g.rad);
+  for(let i=0;i<nM;i++)ms.push(mkM(-3.9+(i%4)*2.6,-2.6+Math.floor(i/4)*3.2));
+  for(let j=0;j<nW;j++){const m=ms[j%nM].o.position;ws.push(mkW(m.x+(j<nM?0:.9),m.z+1.5))}}
+ const mk=(n,c,e)=>{const a=[];for(let i=0;i<n;i++){const m=bx(.07,.07,.07,c,0,0,0,S);if(e)m.material.emissive=new THREE.Color('#ffb020');m.visible=false;a.push({m,l:0,vx:0,vy:0,vz:0})}return a};
+ const sm=[];for(let i=0;i<20;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.18,8,6),new THREE.MeshLambertMaterial({color:'#8d969e',transparent:true,opacity:0}));m.visible=false;S.add(m);sm.push({m,l:0,vx:0})}
+ const sp=mk(20,'#ffd75e',1);
+ const fr=a=>a.find(p=>p.l<=0);
+ let ang=.35,drag=false,lx=0,t=0,pm=0,pb=0,lastMes=0,happy=0,fl=null;
+ R.domElement.addEventListener('pointerdown',e=>{drag=true;lx=e.clientX});
+ window.addEventListener('pointerup',()=>{drag=false});
+ window.addEventListener('pointermove',e=>{if(drag){ang-=(e.clientX-lx)*.01;lx=e.clientX}});
+ function loop(){requestAnimationFrame(loop);t+=.04;
+  const nm=g.bm+g.cncN,k=nm+'|'+g.rad+'|'+g.ru;if(k!==sig){sig=k;build()}
+  const ld=load(),over=ld>g.kap,hv=!!g.hav,now=performance.now();
+  if(g.mesec!==lastMes){if(lastMes&&g.pnl.neto>0)happy=now+3500;lastMes=g.mesec;fl={t:0,dir:1}}
+  if(g.bids.length>pb)fl={t:0,dir:0};pb=g.bids.length;
+  C.position.set(Math.sin(ang)*14,9.5,Math.cos(ang)*14);C.lookAt(0,.8,0);
+  ms.forEach((m,i)=>{const run=!(hv&&i===0);m.hd.position.x=-.45+(run?Math.sin(t+i)*.5:0);m.tl.rotation.y+=run?.4:0;m.lp.material.color.set(hv&&i===0?(Math.floor(t*4)%2?'#e0523f':'#6e2620'):over?'#e8a93a':'#3fae6b')});
+  const hp=now<happy;
+  ws.forEach((w,i)=>{w.o.position.y=hp?Math.abs(Math.sin(t*2+i))*.3:0;w.up.rotation.x=over?.3:0;w.hd.rotation.x=over?.3:.1;
+   w.aR.rotation.x=hp?0:-1.1+Math.sin(t*3+i)*.5;w.aL.rotation.x=hp?0:-.6;w.aR.rotation.z=hp?2.5:0;w.aL.rotation.z=hp?-2.5:0;
+   w.sk.material.color.set(over?'#e3a187':'#f1c9a0')});
+  if(over&&ms.length&&Math.random()<.35){const p=fr(sm),m=ms[Math.floor(Math.random()*ms.length)].o.position;if(p){p.l=1;p.vx=(Math.random()-.5)*.01;p.m.position.set(m.x-.3+Math.random()*.6,2.4,m.z);p.m.visible=true}}
+  if(hv&&ms.length&&Math.random()<.4){const p=fr(sp),m=ms[0].o.position;if(p){p.l=1;p.vx=(Math.random()-.2)*.08;p.vy=.04+Math.random()*.06;p.vz=.03+Math.random()*.05;p.m.position.set(m.x+.7,1.4,m.z+.8);p.m.visible=true}}
+  sm.forEach(p=>{if(p.l<=0)return;p.l-=.012;p.m.position.y+=.03;p.m.position.x+=p.vx;p.m.scale.setScalar(.6+(1-p.l)*1.8);p.m.material.opacity=Math.max(0,p.l*.55);if(p.l<=0)p.m.visible=false});
+  sp.forEach(p=>{if(p.l<=0)return;p.l-=.045;p.vy-=.006;p.m.position.x+=p.vx;p.m.position.y+=p.vy;p.m.position.z+=p.vz;if(p.l<=0||p.m.position.y<.2){p.l=0;p.m.visible=false}});
+  flag.rotation.z=g.upiti.length>0?0:-1.4;
+  const ph=Math.max(.05,Math.min(4,g.potr/15000)),cs=Math.max(.05,Math.min(4,g.kes/15000));
+  pap.scale.y=ph;pap.position.y=ph/2;cash.scale.y=cs;cash.position.y=cs/2;
+  if(fl){fl.t+=.02;const u=Math.min(1,fl.t),a=fl.dir?[6,.8,3.6]:[0,.6,4],b=fl.dir?[0,.6,4]:[6,.8,3.6];
+   let_.position.set(a[0]+(b[0]-a[0])*u,a[1]+Math.sin(Math.PI*u)*1.4,a[2]+(b[2]-a[2])*u);if(u>=1){fl=null;let_.position.y=-9}}
+  R.render(S,C)}
+ loop();
+})();
+const WD=(fn,chk,txt)=>function(...a){const s0=chk(),snap={u:load()/g.kap,tr:g.plate+g.rezija+PROD[g.lvl]+rates()},r=fn.apply(this,a);if(chk()!==s0)g.dlog.push({m:g.mesec,t:txt(),...snap});return r};
+fin=WD(fin,()=>g.cncN,()=>'Kupljena CNC mašina');
+hire2=WD(hire2,()=>g.rad,()=>'Zaposlen novi radnik');
+hala2=WD(hala2,()=>g.hala,()=>'Prelazak u veću halu: '+HN[g.hala]);
+finV=WD(finV,()=>g.voz,()=>'Kupljeno dostavno vozilo');
+admin=WD(admin,()=>g.adm?1:0,()=>'Zaposlen administrator');
+cert=WD(cert,()=>g.cert?1:0,()=>'Uveden ISO sertifikat');
+otpusti=WD(otpusti,()=>g.plate,()=>'Otpušten radnik');
+prodajM=WD(prodajM,()=>g.cncN,()=>'Prodata CNC mašina');
+manjaH=WD(manjaH,()=>g.hala,()=>'Preseljenje u manju halu: '+HN[g.hala]);
+uzmiRez=WD(uzmiRez,()=>g.krediti.length,()=>'Uzet kredit kao rezerva');
+kred=WD(kred,()=>g.krediti.length,()=>'Uzet bankarski kredit (nelikvidnost)');
+prodajPot=WD(prodajPot,()=>g.fl,()=>'Prodata potraživanja (faktoring)');
+odlozi=WD(odlozi,()=>g.rep,()=>'Odloženo plaćanje dobavljačima (reputacija −2)');
+stan=WD(stan,()=>g.stan?1:0,()=>'Prodat stan osnivača');
+izaberi();
+</script></body></html>
